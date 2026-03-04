@@ -12,5 +12,4 @@ int main(void){
 	value* v8 = value_mul(v6, v7);
 	value* v9 = value_pow(v8, v4);
 	value_backward(v9);
-
 }
