@@ -4,3 +4,6 @@ compile_flags.txt
 main 
 bin/ 
 build/
+names.txt
+microgpt.py 
+
