@@ -2,6 +2,10 @@
 #include <stdbool.h>
 #include <stdio.h> 
 #include <string.h> 
+#include <time.h>
+int char_cmp(const void* a, const void* b){
+	return (*(unsigned char *)a - *(unsigned char* )b);
+}
 
 void load_names(char* file_name, char name_list[][NAMEBUF]){
 	FILE* names = fopen(file_name, "r");
@@ -17,6 +21,7 @@ void load_names(char* file_name, char name_list[][NAMEBUF]){
 		i++;
 	}
 	fclose(names);
+	//	shuffling the names
 	for(int i = NUM_INPUTS - 1; i > 0; i--){
 		int j = rand() % (i + 1);
 		char* temp = name_list[i];
@@ -25,37 +30,29 @@ void load_names(char* file_name, char name_list[][NAMEBUF]){
 	}
 }
 
-tokenizer* tokenizer_init(const char name_list[][NAMEBUF]){
-	//	find all the unique characters in the set of names 
-	//	assign an integer value to all of them 
-	//	BOS = max(token_id) + 1 
-	//	vocab_size = BOS + 1
-	tokenizer* t = (tokenizer*)malloc(sizeof(tokenizer));
-	if(!t)
-		return NULL;
+void tokenizer_init(tokenizer* t, const char name_list[][NAMEBUF]){
+	//	count all the unique characters from the set of names
+	bool seen[256];
+	memset(seen, 0, 256);
 	t->vocab_size = 0;
-	bool seen[32] = {false};
 	for(int i = 0; i < NUM_INPUTS; i++){
 		const char* name = name_list[i];
 		for(int j = 0; j < NAMEBUF; j++){
-			if(!name[j])
+			if(!name[j]){
 				break;
-			unsigned char c = name[j];
+			}
+			unsigned char c = (unsigned char)name[j];
 			if(!seen[c]){
-				seen[c] = true;
 				t->uchars[t->vocab_size++] = c;
+				seen[c] = 1;
 			}
 		}
 	}
-	t->BOS = t->vocab_size + 1;
+	qsort(t->uchars, t->vocab_size, sizeof(char), char_cmp);
+	t->BOS = t->vocab_size;
+	t->vocab_size++;
 
-
-
-
-	return t;
 }
 
-void tokenizer_free(tokenizer* t){
-	free(t);
-}
+
 

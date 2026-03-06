@@ -14,8 +14,9 @@ typedef struct tokenizer {
 	int BOS; 
 	char uchars[32];
 }tokenizer;
-tokenizer* tokenizer_init(const char name_list[][NAMEBUF]);
-void tokenizer_free(tokenizer* t);
+void tokenizer_init(tokenizer* t, const char name_list[][NAMEBUF]);
+void tokenizer_apply(tokenizer* t, const char* word);
+
 
 
 

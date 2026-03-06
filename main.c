@@ -9,8 +9,8 @@ int main(void){
 	srand(42);
 	char name_list[NUM_INPUTS][NAMEBUF];
 	load_names(FILENAME, name_list);
-	tokenizer* t = tokenizer_init(name_list);
-	printf("%d\n", t->vocab_size);
+	tokenizer t = {.BOS = 0, .vocab_size = 0};
+	tokenizer_init(&t, name_list);
 
 
 
@@ -19,7 +19,7 @@ int main(void){
 
 
 
-	tokenizer_free(t);
+
 	return 0;
 }
 
