@@ -20,8 +20,10 @@ int main(void){
 	tokenizer_init(&t, name_list);
 
 
-	ad_matrix* m1 = ad_matrix_random_normal(5, 5, -1, 1);
-	ad_matrix_print(m1);
+	state_dict* sd = state_dict_init(N_EMBD, N_HEAD, N_LAYER, BLOCK_SIZE, t.vocab_size);
+
+
+
 
 
 

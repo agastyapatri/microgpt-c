@@ -1,4 +1,6 @@
 #include "utils.h"
+#include "ad.h"
+#include <assert.h>
 #include <stdbool.h>
 #include <stdio.h> 
 #include <string.h> 
@@ -54,4 +56,112 @@ void tokenizer_init(tokenizer* t, const char name_list[][NAMEBUF]){
 
 }
 
+state_dict* state_dict_init(uint embd_dim, uint num_heads, uint num_layers, uint block_size, uint vocab_size){
+	double mu = 0; 
+	double sigma = 0.08; 
+	int head_dim = (int)(embd_dim / num_heads);
+	state_dict* sd = (state_dict*)malloc(sizeof(state_dict));
+	if(!sd){
+		return NULL;
+	}
+	sd->embd_dim = embd_dim;
+	sd->num_heads = num_heads;
+	sd->num_layers = num_layers;
+	sd->block_size = block_size;
+	sd->head_dim = head_dim;
+	sd->wte = ad_matrix_random_normal(vocab_size, embd_dim, mu, sigma);
+	sd->wpe = ad_matrix_random_normal(block_size, embd_dim, mu, sigma);
+	sd->lm_head = ad_matrix_random_normal(vocab_size, embd_dim, mu, sigma);
+	sd->attn_wq  = (ad_matrix**)malloc(num_layers * sizeof(ad_matrix*));
+	if(!sd->attn_wq){ 
+		ad_matrix_free(sd->wte);
+		ad_matrix_free(sd->wpe);
+		free(sd);
+		return NULL;
+	}
+	sd->attn_wk  = (ad_matrix**)malloc(num_layers * sizeof(ad_matrix*));
+	if(!sd->attn_wk){ 
+		free(sd->attn_wq);
+		ad_matrix_free(sd->wte);
+		ad_matrix_free(sd->wpe);
+		free(sd);
+		return NULL;
+	}
+	sd->attn_wv  = (ad_matrix**)malloc(num_layers * sizeof(ad_matrix*));
+	if(!sd->attn_wv){ 
+		free(sd->attn_wk);
+		free(sd->attn_wq);
+		ad_matrix_free(sd->wte);
+		ad_matrix_free(sd->wpe);
+		free(sd);
+		return NULL;
+	}
+	sd->attn_wo  = (ad_matrix**)malloc(num_layers * sizeof(ad_matrix*));
+	if(!sd->attn_wo){ 
+		free(sd->attn_wv);
+		free(sd->attn_wk);
+		free(sd->attn_wq);
+		ad_matrix_free(sd->wte);
+		ad_matrix_free(sd->wpe);
+		free(sd);
+		return NULL;
+	}
+	sd->mlp_fc1  = (ad_matrix**)malloc(num_layers * sizeof(ad_matrix*));
+	if(!sd->mlp_fc1){ 
+		free(sd->attn_wo);
+		free(sd->attn_wv);
+		free(sd->attn_wk);
+		free(sd->attn_wq);
+		ad_matrix_free(sd->wte);
+		ad_matrix_free(sd->wpe);
+		free(sd);
+		return NULL;
+	}
+	sd->mlp_fc2  = (ad_matrix**)malloc(num_layers * sizeof(ad_matrix*));
+	if(!sd->mlp_fc2){ 
+		free(sd->mlp_fc1);
+		free(sd->attn_wo);
+		free(sd->attn_wv);
+		free(sd->attn_wk);
+		free(sd->attn_wq);
+		ad_matrix_free(sd->wte);
+		ad_matrix_free(sd->wpe);
+		free(sd);
+		return NULL;
+	}
 
+	for(uint i = 0; i < num_layers; i++){
+
+
+
+	}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+	return sd;
+}
+
+
+void state_dict_free(state_dict* sd){
+	assert(sd!=NULL);
+	
+
+}

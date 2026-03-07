@@ -265,7 +265,7 @@ void graph_sort(ad_value* out, ad_value** sorted, int* sorted_size, ad_value** v
 }
 
 
-void ad_backward(ad_value* out){
+void ad_value_backward(ad_value* out){
 	size_t graph_size = GRAPH_SIZE;
 	ad_value* sorted[graph_size];
 	ad_value* visited[graph_size];

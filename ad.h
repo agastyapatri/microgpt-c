@@ -55,14 +55,14 @@ ad_value* ad_value_sin	(ad_value* inp1);
 ad_value* ad_value_cos	(ad_value* inp1);
 ad_value* ad_value_relu	(ad_value* inp1);
 bool ad_value_equality 	(ad_value* inp1, ad_value* inp2);
-void ad_backward (ad_value* out);
+void ad_value_backward 	(ad_value* out);
 
 
 typedef struct ad_matrix{
 	uint rows; 			// rows  
 	uint cols;  		// cols 
-	uint size;
-	ad_value* data;		// flat representation; row major order.	
+	uint size;			// rows*cols
+	ad_value* data;		// flat representation; ad_matrix.data is an array of ad_value.
 } ad_matrix;
 #define offset(m, i, j) (i*m->cols + j)
 #define rand_double() (rand()/(double)RAND_MAX);
