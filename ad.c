@@ -1,4 +1,5 @@
 #include "ad.h"
+#include <assert.h>
 #include <math.h>
 #include <math.h>
 #include <string.h>
@@ -33,136 +34,176 @@ const char* get_optype_string(OPTYPE op){
 	return NULL;
 }
 
-value* value_init(double data){
-	value* a = (value*)malloc(sizeof(value));
+ad_value* ad_value_alloc(double data){
+	ad_value* a = (ad_value*)malloc(sizeof(ad_value));
 	if(!a)	return NULL;
 	a->data = data; 
 	a->grad = 0;
 	a->op = NONE;
 	a->previous[0] = NULL;
 	a->previous[1] = NULL;
-	a->ref_count = (int*)malloc(sizeof(int));
-	if(!a){
-		free(a);
-		return NULL;
-	}
-	*(a->ref_count) = 1;
+	a->ref_count = 1;
 	return a;
 }
 
-void value_free(value* val){
-	(*(val->ref_count))--;
-	if(*(val->ref_count) == 0){
+double rand_normal(double mu, double sigma){
+	double n2 = 0.0; 
+	double n2_cached = 0.0; 
+	if(!n2_cached){
+		double u1 = rand_double();
+		double u2 = rand_double();
+		double r = sqrt(-2.0 * log(u1));
+		double theta = 2 * PI * u2;
+		n2 = r * sin(theta);
+		n2_cached = 1;
+		return (r * cos(theta) * sigma + mu);
+	}
+	else{
+		n2_cached = 0;
+		return (n2*sigma + mu);
+	}
+}
+
+
+ad_value* ad_value_rand_normal(double mu, double sigma){
+	return ad_value_alloc(rand_normal(mu, sigma));
+}
+
+ad_value* ad_value_random_gauss(double mu, double sigma){
+	double n2 = 0.0; 
+	double n2_cached = 0.0; 
+	double data;
+	if(!n2_cached){
+		// double u1 = rand_double();
+		double u1 = rand() / (double)RAND_MAX;
+		double u2 = rand() / (double)RAND_MAX;
+		double r = sqrt(-2.0 * log(u1));
+		double theta = 2 * PI * u2;
+		n2 = r * sin(theta);
+		n2_cached = 1;
+		data = r * cos(theta) * sigma + mu;
+	}
+	else{
+		n2_cached = 0;
+		data = n2*sigma + mu;
+	}
+	ad_value* out = ad_value_alloc(data);
+	return out;
+}
+
+void ad_value_free(ad_value* val){
+	val->ref_count--;
+	if(val->ref_count == 0){
 		free(val);
 	}
 }
 
 
-void value_print(value* val){
-	printf("value(data: %lf, grad: %lf, op: %s)", val->data, val->grad, get_optype_string(val->op));
+void ad_value_print(ad_value* val){
+	printf("ad_value(data: %lf, grad: %lf, op: %s)", val->data, val->grad, get_optype_string(val->op));
 }
 
-value* value_add(value* inp1, value* inp2){
-	value* out = value_init(inp1->data + inp2->data);
+ad_value* ad_value_add(ad_value* inp1, ad_value* inp2){
+	ad_value* out = ad_value_alloc(inp1->data + inp2->data);
 	out->op = ADD;
 	out->previous[0] = inp1;
 	out->previous[1] = inp2;
-	out->previous[0]->ref_count[0]++;
-	out->previous[1]->ref_count[0]++;
+	out->previous[0]->ref_count++;
+	out->previous[1]->ref_count++;
 
 	return out;
 }
 
-value* value_sub(value* inp1, value* inp2){
-	value* out = value_init(inp1->data - inp2->data);
+ad_value* ad_value_sub(ad_value* inp1, ad_value* inp2){
+	ad_value* out = ad_value_alloc(inp1->data - inp2->data);
 	out->op = SUB;
 	out->previous[0] = inp1;
 	out->previous[1] = inp2;
-	out->previous[0]->ref_count[0]++;
-	out->previous[1]->ref_count[0]++;
+	out->previous[0]->ref_count++;
+	out->previous[1]->ref_count++;
 	return out;
 }
-value* value_mul(value* inp1, value* inp2){
-	value* out = value_init(inp1->data * inp2->data);
+ad_value* ad_value_mul(ad_value* inp1, ad_value* inp2){
+	ad_value* out = ad_value_alloc(inp1->data * inp2->data);
 	out->op = MUL;
 	out->previous[0] = inp1;
 	out->previous[1] = inp2;
-	out->previous[0]->ref_count[0]++;
-	out->previous[1]->ref_count[0]++;
+	out->previous[0]->ref_count++;
+	out->previous[1]->ref_count++;
 	return out;
 }
 
-value* value_pow(value* inp1, value* exponent){
-	value* out = value_init(pow(inp1->data, exponent->data));
+ad_value* ad_value_pow(ad_value* inp1, ad_value* exponent){
+	ad_value* out = ad_value_alloc(pow(inp1->data, exponent->data));
 	out->op = POW;
 	out->previous[0] = inp1;
 	out->previous[1] = exponent;
-	out->previous[0]->ref_count[0]++;
-	out->previous[1]->ref_count[0]++;
+	out->previous[0]->ref_count++;
+	out->previous[1]->ref_count++;
 	return out;
 }
 
-value* value_sigmoid(value* inp1){
-	value* out = value_init(1.0 / (1 + exp(-(inp1->data))));
+ad_value* ad_value_sigmoid(ad_value* inp1){
+	ad_value* out = ad_value_alloc(1.0 / (1 + exp(-(inp1->data))));
 	out->op = SIGMOID;
 	out->previous[0] = inp1;
-	out->previous[0]->ref_count[0]++;
+	out->previous[0]->ref_count++;
 	return out;
 }
 
-value* value_tanh(value* inp1){
-	value* out = value_init(tanh(inp1->data));
+ad_value* ad_value_tanh(ad_value* inp1){
+	ad_value* out = ad_value_alloc(tanh(inp1->data));
 	out->op = TANH;
 	out->previous[0] = inp1;
-	out->previous[0]->ref_count[0]++;
+	out->previous[0]->ref_count++;
 	return out;
 }
-value* value_log(value* inp1){
-	value* out = value_init(log(inp1->data));
+ad_value* ad_value_log(ad_value* inp1){
+	ad_value* out = ad_value_alloc(log(inp1->data));
 	out->op = LOG;
 	out->previous[0] = inp1;
-	out->previous[0]->ref_count[0]++;
+	out->previous[0]->ref_count++;
 	return out;
 }
-value* value_exp(value* inp1){
-	value* out = value_init(exp(inp1->data));
+ad_value* ad_value_exp(ad_value* inp1){
+	ad_value* out = ad_value_alloc(exp(inp1->data));
 	out->op = EXP;
 	out->previous[0] = inp1;
-	out->previous[0]->ref_count[0]++;
+	out->previous[0]->ref_count++;
 	return out;
 }
 
-value* value_sin(value* inp1){
-	value* out = value_init(sin(inp1->data));
+ad_value* ad_value_sin(ad_value* inp1){
+	ad_value* out = ad_value_alloc(sin(inp1->data));
 	out->op = SIN;
 	out->previous[0] = inp1;
-	out->previous[0]->ref_count[0]++;
+	out->previous[0]->ref_count++;
 	return out;
 }
 
-value* value_cos(value* inp1){
-	value* out = value_init(cos(inp1->data));
+ad_value* ad_value_cos(ad_value* inp1){
+	ad_value* out = ad_value_alloc(cos(inp1->data));
 	out->op = COS;
 	out->previous[0] = inp1;
-	out->previous[0]->ref_count[0]++;
+	out->previous[0]->ref_count++;
 	return out;
 }
 
 
-value* value_relu(value* inp1){
-	value* out = value_init((inp1->data > 0) ? inp1->data : 0);
+ad_value* ad_value_relu(ad_value* inp1){
+	ad_value* out = ad_value_alloc((inp1->data > 0) ? inp1->data : 0);
 	out->op = RELU;
 	out->previous[0] = inp1;
-	out->previous[0]->ref_count[0]++;
+	out->previous[0]->ref_count++;
 	return out;
 }
 
-bool value_equality(value* inp1, value* inp2){
+bool ad_value_equality(ad_value* inp1, ad_value* inp2){
 	return (inp1->data == inp2->data) && (inp1->grad == inp2->grad);
 }
 
 
-void grad(value* out){
+void grad(ad_value* out){
 	switch(out->op){
 		case NONE: 
 			break; 
@@ -207,7 +248,7 @@ void grad(value* out){
 }
 
 
-void graph_sort(value* out, value** sorted, int* sorted_size, value** visited, int* visited_size){
+void graph_sort(ad_value* out, ad_value** sorted, int* sorted_size, ad_value** visited, int* visited_size){
 	for(int i = 0; i < *visited_size; i++){
 		if(visited[i] == out)
 			return;
@@ -224,26 +265,97 @@ void graph_sort(value* out, value** sorted, int* sorted_size, value** visited, i
 }
 
 
-void value_backward(value* out){
+void ad_backward(ad_value* out){
 	size_t graph_size = GRAPH_SIZE;
-	value* sorted[graph_size];
-	value* visited[graph_size];
+	ad_value* sorted[graph_size];
+	ad_value* visited[graph_size];
 	int sorted_size = 0;
 	int visited_size = 0;
 	graph_sort(out, sorted, &sorted_size, visited, &visited_size);
 	out->grad = 1.0;
 	for(int i = sorted_size - 1; i >=0; i--){
 		grad(sorted[i]);
-		value_print(sorted[i]);
+		ad_value_print(sorted[i]);
 		printf("\n");
 	}
 }
 
+ad_matrix* ad_matrix_alloc(uint nrows, uint ncols){
+	uint size = nrows * ncols; 
+	ad_matrix* m = (ad_matrix*)malloc(sizeof(ad_matrix));
+	if(!m){
+		return NULL;
+	}
+	m->rows = nrows; 
+	m->cols = ncols;
+	m->size = size;
+	m->data = (ad_value*)malloc(size * sizeof(ad_value));
+	if(!m->data){
+		free(m);
+		return NULL;
+	}
+	for(uint i = 0; i < size; i++){
+		m->data[i].data = 0; 
+		m->data[i].grad = 0; 
+		m->data[i].op = NONE; 
+		m->data[i].ref_count = 1;
+		m->data[i].previous[0] = NULL;
+		m->data[i].previous[1] = NULL;
+	} 
+	return m;
+}
+
+void ad_matrix_print(ad_matrix* m){
+	assert(m!=NULL);
+	printf("ad_matrix[[");
+	for(uint i = 0; i < m->rows; i++){
+		if(i > 0)
+			printf("          [");
+		for(uint j = 0; j < m->cols; j++){
+			double data = m->data[offset(m, i, j)].data;
+			if(data >= 0)
+				printf("%10.8f", data);
+			else
+				printf("%10.7f", data);
+			if(j < m->cols - 1)
+				printf("  ");
+		} 
+		printf("]");
+		if(i < m->rows - 1)
+			printf("\n");
+	}
+	printf("]\n");
+}
 
 
+ad_matrix* ad_matrix_random_normal(int nrows, int ncols, double mu, double sigma){
+	uint size = nrows * ncols; 
+	ad_matrix* m = (ad_matrix*)malloc(sizeof(ad_matrix));
+	if(!m){
+		return NULL;
+	}
+	m->rows = nrows; 
+	m->cols = ncols;
+	m->size = size;
+	m->data = (ad_value*)malloc(size * sizeof(ad_value));
+	if(!m->data){
+		free(m);
+		return NULL;
+	}
+	for(uint i = 0; i < size; i++){
+		m->data[i].data = rand_normal(mu, sigma); 
+		m->data[i].grad = 0; 
+		m->data[i].op = NONE; 
+		m->data[i].ref_count = 1;
+		m->data[i].previous[0] = NULL;
+		m->data[i].previous[1] = NULL;
+	} 
+	return m;
+}
 
-
-
-
-
+void ad_matrix_free(ad_matrix* m){
+	assert(m!=NULL);
+	free(m->data);
+	free(m);
+}
 
