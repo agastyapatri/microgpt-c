@@ -82,22 +82,14 @@ typedef struct ad_matrix{
 													matrix->cols = ncols;		 	\
 													matrix->size = nrows * ncols;	\
 
-
-
 ad_matrix* ad_matrix_alloc(uint nrows, uint ncols);
-void ad_matrix_free(ad_matrix* m);
-void ad_matrix_print(ad_matrix* m);
+void 	ad_matrix_free(ad_matrix* m);
+void 	ad_matrix_print(ad_matrix* m);
+double 	ad_matrix_mean(ad_matrix* m);
+double 	ad_matrix_sum(ad_matrix* m);
+double 	ad_matrix_std(ad_matrix* m);
 
 //	creates a matrix of ad_values initialized to a gaussian distribution
 ad_matrix* ad_matrix_random_normal(int nrows, int ncols, double mu, double sigma);
-
-
-
-
-
-
-
-
-
 
 #endif /* ifndef EGAD_H */

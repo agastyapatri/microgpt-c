@@ -286,9 +286,7 @@ ad_matrix* ad_matrix_alloc(uint nrows, uint ncols){
 	if(!m){
 		return NULL;
 	}
-	m->rows = nrows; 
-	m->cols = ncols;
-	m->size = size;
+	AD_MATRIX_SHAPE_INIT(m, nrows, ncols);
 	m->data = (ad_value*)malloc(size * sizeof(ad_value));
 	if(!m->data){
 		free(m);
@@ -352,3 +350,23 @@ void ad_matrix_free(ad_matrix* m){
 	free(m);
 }
 
+double ad_matrix_sum(ad_matrix* m){
+	double _sum = 0.0; 
+	for(uint i = 0; i < m->size; i++)
+		_sum += m->data[i].data;
+	return _sum;
+}
+
+double ad_matrix_mean(ad_matrix* m){
+	return ad_matrix_sum(m)/m->size;
+}
+
+double ad_matrix_std(ad_matrix* m){
+	double mu = ad_matrix_mean(m);
+	double sigma = 0.0;
+	for(uint i = 0; i < m->size; i++){
+		sigma += (m->data[i].data - mu)*(m->data[i].data - mu);
+	}
+	sigma/=m->size;
+	return sqrt(sigma);
+}

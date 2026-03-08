@@ -12,15 +12,23 @@
 
 
 
+
+
 int main(void){
 	srand(time(NULL));
 	char name_list[NUM_INPUTS][NAMEBUF];
 	load_names(FILENAME, name_list);
 	tokenizer t = {.BOS = 0, .vocab_size = 0};
 	tokenizer_init(&t, name_list);
-
-
 	state_dict* sd = state_dict_init(N_EMBD, N_HEAD, N_LAYER, BLOCK_SIZE, t.vocab_size);
+	params* params = params_init(sd);
+
+	ad_matrix* x = ad_matrix_random_normal(1, 10, 0, 1);
+	ad_matrix* w = ad_matrix_random_normal(10, 10, 0, 1);
+	ad_matrix* out = linear_forward(x, w);
+	ad_matrix_print(out);
+
+	
 
 
 
@@ -36,6 +44,10 @@ int main(void){
 
 
 
+
+
+	state_dict_free(sd);
+	params_free(params);
 	return 0;
 }
 
