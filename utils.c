@@ -244,4 +244,54 @@ void params_free(params* p){
 
 
 
-ad_matrix* gpt_forward(int token_id, int position_id, int keys, int values);
+
+
+ad_matrix* gpt(state_dict* sd, int token_id, int pos_id, ad_matrix* keys, ad_matrix* values){
+	ad_matrix* tok_emb = ad_matrix_get_row(sd->wte, token_id);			//	token embeddings 
+	ad_matrix* pos_emb = ad_matrix_get_row(sd->wte, pos_id); 			//	position embeddings
+	ad_matrix* x = ad_matrix_alloc(tok_emb->rows, tok_emb->cols);		//	joint embeddings
+	for(uint i = 0; i < tok_emb->size; i++)
+		x->data[i].data = tok_emb->data[i].data + pos_emb->data[i].data;
+	ad_matrix* x_rms = ad_matrix_rmsnorm(x);
+
+
+
+
+
+
+
+	ad_matrix_free(tok_emb);
+	ad_matrix_free(pos_emb);
+	ad_matrix_free(x_rms);
+	ad_matrix_free(x);
+
+
+
+
+	return tok_emb;
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

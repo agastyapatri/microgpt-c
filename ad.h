@@ -68,6 +68,8 @@ typedef struct ad_matrix{
 	ad_value* data;		// flat representation; ad_matrix.data is an array of ad_value.
 } ad_matrix;
 #define offset(m, i, j) (i*m->cols + j)
+#define get(m, i, j) (m->data[i*m->cols + j].data)
+#define set(m, i, j, value) (m->data[i*m->cols + j].data = value)
 #define rand_double() (rand()/(double)RAND_MAX);
 #define AD_MATRIX_RANDOM_INIT(matrix, size, mu, sigma)	for(uint j = 0; j < size; j++){						\
 															matrix->data[j].data = rand_normal(mu, sigma);  \
@@ -83,18 +85,19 @@ typedef struct ad_matrix{
 													matrix->size = nrows * ncols;	\
 
 ad_matrix* ad_matrix_alloc(uint nrows, uint ncols);
-void 	ad_matrix_free(ad_matrix* m);
-void 	ad_matrix_print(ad_matrix* m);
-double 	ad_matrix_mean(ad_matrix* m);
-double 	ad_matrix_sum(ad_matrix* m);
-double 	ad_matrix_std(ad_matrix* m);
-double 	ad_matrix_max(ad_matrix* m);
-double 	ad_matrix_min(ad_matrix* m);
+void 	ad_matrix_free  (ad_matrix* m);
+void 	ad_matrix_print	(ad_matrix* m);
+double 	ad_matrix_mean	(ad_matrix* m);
+double 	ad_matrix_sum	(ad_matrix* m);
+double 	ad_matrix_std	(ad_matrix* m);
+double 	ad_matrix_max	(ad_matrix* m);
+double 	ad_matrix_min	(ad_matrix* m);
 
 //	creates a matrix of ad_values initialized to a gaussian distribution
 ad_matrix* ad_matrix_random_normal(int nrows, int ncols, double mu, double sigma);
-ad_matrix* ad_matrix_softmax(ad_matrix* x);
+ad_matrix* ad_matrix_softmax(ad_matrix* n);
 ad_matrix* ad_matrix_rmsnorm(ad_matrix* x);
-ad_matrix* ad_matrix_matmul(ad_matrix* x, ad_matrix* y);
+ad_matrix* ad_matrix_matmul	(ad_matrix* x, ad_matrix* y);
+ad_matrix* ad_matrix_get_row(ad_matrix* m, int row_idx);
 
 #endif /* ifndef EGAD_H */

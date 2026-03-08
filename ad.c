@@ -351,6 +351,7 @@ void ad_matrix_free(ad_matrix* m){
 }
 
 double ad_matrix_sum(ad_matrix* m){
+	assert(m!=NULL);
 	double _sum = 0.0; 
 	for(uint i = 0; i < m->size; i++)
 		_sum += m->data[i].data;
@@ -358,10 +359,12 @@ double ad_matrix_sum(ad_matrix* m){
 }
 
 double ad_matrix_mean(ad_matrix* m){
+	assert(m!=NULL);
 	return ad_matrix_sum(m)/m->size;
 }
 
 double ad_matrix_std(ad_matrix* m){
+	assert(m!=NULL);
 	double mu = ad_matrix_mean(m);
 	double sigma = 0.0;
 	for(uint i = 0; i < m->size; i++){
@@ -372,6 +375,7 @@ double ad_matrix_std(ad_matrix* m){
 }
 
 double 	ad_matrix_max(ad_matrix* m){
+	assert(m!=NULL);
 	double max = 0;
 	for(uint i = 0; i < m->size; i++){
 		if(m->data[i].data > max){
@@ -382,6 +386,7 @@ double 	ad_matrix_max(ad_matrix* m){
 }
 
 double 	ad_matrix_min(ad_matrix* m){
+	assert(m!=NULL);
 	double max = (double)1e9;
 	for(uint i = 0; i < m->size; i++){
 		if(m->data[i].data < max){
@@ -392,6 +397,7 @@ double 	ad_matrix_min(ad_matrix* m){
 }
 
 ad_matrix* ad_matrix_softmax(ad_matrix* x){
+	assert(x!=NULL);
 	double max = ad_matrix_max(x);
 	ad_matrix* softmax = ad_matrix_alloc(x->rows, x->cols);
 	for(uint i = 0; i < softmax->size; i++){
@@ -406,6 +412,7 @@ ad_matrix* ad_matrix_softmax(ad_matrix* x){
 }
 
 ad_matrix* ad_matrix_rmsnorm(ad_matrix* x){
+	assert(x!=NULL);
 	double ss = 0;
 	for(uint i = 0; i < x->size; i++){
 		ss += pow(x->data[i].data, 2);  
@@ -420,11 +427,13 @@ ad_matrix* ad_matrix_rmsnorm(ad_matrix* x){
 }
 
 ad_matrix* ad_matrix_matmul(ad_matrix* x, ad_matrix* y){
+	assert(x!=NULL);
+	assert(y!=NULL);
 	assert(x->cols == y->rows);
 	ad_matrix* out = ad_matrix_alloc(x->rows, y->cols);
 	for(uint i = 0; i < x->rows; i++){
 		for(uint k = 0; k < x->cols; k++){
-			double x_ik = x->data[offset(x, i, k)].data;
+			double x_ik = get(x, i, k);
 			for(uint j = 0; j < y->cols; j++){
 				out->data[offset(out, i, j)].data += x_ik * y->data[offset(y, k, j)].data;
 			}
@@ -433,6 +442,12 @@ ad_matrix* ad_matrix_matmul(ad_matrix* x, ad_matrix* y){
 	return out;
 }
 
-
-
+ad_matrix* ad_matrix_get_row(ad_matrix* m, int row_idx){
+	assert(m!=NULL);
+	ad_matrix* row = ad_matrix_alloc(1, m->cols);
+	for(uint j = 0; j < m->cols; j++){
+		set(row, 0, j, get(m, row_idx, j));
+	}
+	return row;
+}
 
