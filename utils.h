@@ -36,6 +36,7 @@ typedef struct state_dict{
 	ad_matrix** mlp_fc2;	// 	array of fully connected portions of each layer
 } state_dict;
 
+
 state_dict* state_dict_init(uint embd_dim, uint num_heads, uint num_layers, uint block_size, uint vocab_size);
 void state_dict_free(state_dict* sd);
 

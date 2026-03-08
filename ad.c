@@ -342,14 +342,7 @@ ad_matrix* ad_matrix_random_normal(int nrows, int ncols, double mu, double sigma
 		free(m);
 		return NULL;
 	}
-	for(uint i = 0; i < size; i++){
-		m->data[i].data = rand_normal(mu, sigma); 
-		m->data[i].grad = 0; 
-		m->data[i].op = NONE; 
-		m->data[i].ref_count = 1;
-		m->data[i].previous[0] = NULL;
-		m->data[i].previous[1] = NULL;
-	} 
+	AD_MATRIX_RANDOM_INIT(m, size, mu, sigma);
 	return m;
 }
 

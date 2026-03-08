@@ -5,6 +5,7 @@
 #include <stdio.h> 
 #include <string.h> 
 #include <time.h>
+
 int char_cmp(const void* a, const void* b){
 	return (*(unsigned char *)a - *(unsigned char* )b);
 }
@@ -76,6 +77,7 @@ state_dict* state_dict_init(uint embd_dim, uint num_heads, uint num_layers, uint
 	if(!sd->attn_wq){ 
 		ad_matrix_free(sd->wte);
 		ad_matrix_free(sd->wpe);
+		ad_matrix_free(sd->lm_head);
 		free(sd);
 		return NULL;
 	}
@@ -84,6 +86,7 @@ state_dict* state_dict_init(uint embd_dim, uint num_heads, uint num_layers, uint
 		free(sd->attn_wq);
 		ad_matrix_free(sd->wte);
 		ad_matrix_free(sd->wpe);
+		ad_matrix_free(sd->lm_head);
 		free(sd);
 		return NULL;
 	}
@@ -93,6 +96,7 @@ state_dict* state_dict_init(uint embd_dim, uint num_heads, uint num_layers, uint
 		free(sd->attn_wq);
 		ad_matrix_free(sd->wte);
 		ad_matrix_free(sd->wpe);
+		ad_matrix_free(sd->lm_head);
 		free(sd);
 		return NULL;
 	}
@@ -103,6 +107,7 @@ state_dict* state_dict_init(uint embd_dim, uint num_heads, uint num_layers, uint
 		free(sd->attn_wq);
 		ad_matrix_free(sd->wte);
 		ad_matrix_free(sd->wpe);
+		ad_matrix_free(sd->lm_head);
 		free(sd);
 		return NULL;
 	}
@@ -114,9 +119,11 @@ state_dict* state_dict_init(uint embd_dim, uint num_heads, uint num_layers, uint
 		free(sd->attn_wq);
 		ad_matrix_free(sd->wte);
 		ad_matrix_free(sd->wpe);
+		ad_matrix_free(sd->lm_head);
 		free(sd);
 		return NULL;
 	}
+
 	sd->mlp_fc2  = (ad_matrix**)malloc(num_layers * sizeof(ad_matrix*));
 	if(!sd->mlp_fc2){ 
 		free(sd->mlp_fc1);
@@ -126,42 +133,46 @@ state_dict* state_dict_init(uint embd_dim, uint num_heads, uint num_layers, uint
 		free(sd->attn_wq);
 		ad_matrix_free(sd->wte);
 		ad_matrix_free(sd->wpe);
+		ad_matrix_free(sd->lm_head);
 		free(sd);
 		return NULL;
 	}
 
 	for(uint i = 0; i < num_layers; i++){
-
-
-
+		sd->attn_wq[i] = ad_matrix_random_normal(embd_dim, embd_dim, mu, sigma);
+		sd->attn_wk[i] = ad_matrix_random_normal(embd_dim, embd_dim, mu, sigma);
+		sd->attn_wv[i] = ad_matrix_random_normal(embd_dim, embd_dim, mu, sigma);
+		sd->attn_wo[i] = ad_matrix_random_normal(embd_dim, embd_dim, mu, sigma);
+		sd->mlp_fc1[i] = ad_matrix_random_normal(4*embd_dim, embd_dim, mu, sigma);
+		sd->mlp_fc2[i] = ad_matrix_random_normal(embd_dim, 4*embd_dim, mu, sigma);
 	}
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 	return sd;
 }
 
 
+
+
+
 void state_dict_free(state_dict* sd){
 	assert(sd!=NULL);
-	
+	for(uint i = 0; i < sd->num_layers; i++){
+		ad_matrix_free(sd->mlp_fc2[i]);
+		ad_matrix_free(sd->mlp_fc1[i]);
+		ad_matrix_free(sd->attn_wo[i]);
+		ad_matrix_free(sd->attn_wv[i]);
+		ad_matrix_free(sd->attn_wk[i]);
+		ad_matrix_free(sd->attn_wq[i]);
+	}
+	free(sd->mlp_fc2);
+	free(sd->mlp_fc1);
+	free(sd->attn_wo);
+	free(sd->attn_wv);
+	free(sd->attn_wk);
+	free(sd->attn_wq);
 
+	ad_matrix_free(sd->wte);
+	ad_matrix_free(sd->wpe);
+	ad_matrix_free(sd->lm_head);
+
+	free(sd);
 }
