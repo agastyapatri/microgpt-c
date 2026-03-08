@@ -370,3 +370,69 @@ double ad_matrix_std(ad_matrix* m){
 	sigma/=m->size;
 	return sqrt(sigma);
 }
+
+double 	ad_matrix_max(ad_matrix* m){
+	double max = 0;
+	for(uint i = 0; i < m->size; i++){
+		if(m->data[i].data > max){
+			max = m->data[i].data;
+		}
+	}
+	return max;
+}
+
+double 	ad_matrix_min(ad_matrix* m){
+	double max = (double)1e9;
+	for(uint i = 0; i < m->size; i++){
+		if(m->data[i].data < max){
+			max = m->data[i].data;
+		}
+	}
+	return max;
+}
+
+ad_matrix* ad_matrix_softmax(ad_matrix* x){
+	double max = ad_matrix_max(x);
+	ad_matrix* softmax = ad_matrix_alloc(x->rows, x->cols);
+	for(uint i = 0; i < softmax->size; i++){
+		softmax->data[i].data -= max;
+		softmax->data[i].data = exp(softmax->data[i].data);
+	}
+	double sum = ad_matrix_sum(softmax);
+	for(uint i = 0; i < softmax->size; i++){
+		softmax->data[i].data /= sum;
+	}
+	return softmax;
+}
+
+ad_matrix* ad_matrix_rmsnorm(ad_matrix* x){
+	double ss = 0;
+	for(uint i = 0; i < x->size; i++){
+		ss += pow(x->data[i].data, 2);  
+	}
+	ss /= x->size;
+	float rms = 1.0 / sqrt(ss + (double)1e-8);
+	ad_matrix* out = ad_matrix_alloc(x->rows, x->cols);
+	for(uint i = 0; i < x->size; i++){
+		out->data[i].data = x->data[i].data * rms;
+	}
+	return out;
+}
+
+ad_matrix* ad_matrix_matmul(ad_matrix* x, ad_matrix* y){
+	assert(x->cols == y->rows);
+	ad_matrix* out = ad_matrix_alloc(x->rows, y->cols);
+	for(uint i = 0; i < x->rows; i++){
+		for(uint k = 0; k < x->cols; k++){
+			double x_ik = x->data[offset(x, i, k)].data;
+			for(uint j = 0; j < y->cols; j++){
+				out->data[offset(out, i, j)].data += x_ik * y->data[offset(y, k, j)].data;
+			}
+		}
+	}
+	return out;
+}
+
+
+
+

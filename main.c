@@ -9,6 +9,11 @@
 #define N_LAYER 1						//	number of layers 
 #define BLOCK_SIZE 16					//	maximum sequence length
 #define HEAD_DIM (int)(N_EMBD / N_HEAD) // dimensionality of each head
+#define LEARNING_RATE (double)1e-2
+#define BETA1 0.85 
+#define BETA2 0.99
+#define NUM_STEPS 1000 
+#define EPS_ADAM (double)1e-8
 
 
 
@@ -23,20 +28,18 @@ int main(void){
 	state_dict* sd = state_dict_init(N_EMBD, N_HEAD, N_LAYER, BLOCK_SIZE, t.vocab_size);
 	params* params = params_init(sd);
 
-	ad_matrix* x = ad_matrix_random_normal(1, 10, 0, 1);
-	ad_matrix* w = ad_matrix_random_normal(10, 10, 0, 1);
-	ad_matrix* out = linear_forward(x, w);
-	ad_matrix_print(out);
+
+	for(int i = 0; i < NUM_INPUTS; i++){
+		const char* name = name_list[i];
+		printf("%s\t", name );
+		tokenizer_apply(&t, name);
+		printf("\n");
+		if(i == 5)
+			break;
+	}
+
 
 	
-
-
-
-
-
-
-
-
 
 
 

@@ -56,6 +56,30 @@ void tokenizer_init(tokenizer* t, const char name_list[][NAMEBUF]){
 	t->vocab_size++;
 }
 
+int tokenizer_get_token(tokenizer* t, const char c){
+	for(int i = 0; i < t->vocab_size-1; i++){
+		if(c == t->uchars[i]){
+			return i;
+		}
+	}
+	return t->BOS;
+}
+
+
+ad_matrix* tokenizer_apply(tokenizer* t, const char* word){
+	int word_len = strlen(word);
+	ad_matrix* tokens = ad_matrix_alloc(1, 2 + word_len);
+	for(int i = 0; i < word_len-1; i++){
+		tokens->data[i+1].data = tokenizer_get_token(t, word[i]);
+	}
+	tokens->data[0].data = t->BOS;
+	tokens->data[word_len + 1].data = t->BOS;
+	return tokens;
+}
+
+
+
+
 state_dict* state_dict_init(uint embd_dim, uint num_heads, uint num_layers, uint block_size, uint vocab_size){
 	double mu = 0; 
 	double sigma = 0.08; 
@@ -218,10 +242,6 @@ void params_free(params* p){
 	free(p);
 }
 
-ad_matrix* linear_forward(ad_matrix* x,  ad_matrix* w){
-	assert(x->cols == w->rows);
-	assert(x->rows == 1);
-	ad_matrix* out = ad_matrix_alloc(1, w->cols);
-	printf("%d %d\n", out->rows, out->cols);
-	return out;
-}
+
+
+ad_matrix* gpt_forward(int token_id, int position_id, int keys, int values);

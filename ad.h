@@ -88,8 +88,13 @@ void 	ad_matrix_print(ad_matrix* m);
 double 	ad_matrix_mean(ad_matrix* m);
 double 	ad_matrix_sum(ad_matrix* m);
 double 	ad_matrix_std(ad_matrix* m);
+double 	ad_matrix_max(ad_matrix* m);
+double 	ad_matrix_min(ad_matrix* m);
 
 //	creates a matrix of ad_values initialized to a gaussian distribution
 ad_matrix* ad_matrix_random_normal(int nrows, int ncols, double mu, double sigma);
+ad_matrix* ad_matrix_softmax(ad_matrix* x);
+ad_matrix* ad_matrix_rmsnorm(ad_matrix* x);
+ad_matrix* ad_matrix_matmul(ad_matrix* x, ad_matrix* y);
 
 #endif /* ifndef EGAD_H */

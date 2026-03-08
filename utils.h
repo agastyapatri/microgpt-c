@@ -16,8 +16,8 @@ typedef struct tokenizer {
 }tokenizer;
 
 void tokenizer_init(tokenizer* t, const char word_list[][NAMEBUF]);
-void tokenizer_apply(tokenizer* t, const char* word);
-
+ad_matrix* tokenizer_apply(tokenizer* t, const char* word);
+int tokenizer_get_token(tokenizer* t, const char c);
 
 typedef struct state_dict{
 	uint 		embd_dim;		//	embedding dimensions 
@@ -46,6 +46,10 @@ typedef struct params {
 params* params_init(state_dict* sd);
 void params_free(params* p);
 
-ad_matrix* linear_forward(ad_matrix* x,  ad_matrix* w);
+ad_matrix* gpt_forward(int token_id, int position_id, int keys, int values);
+
+
+
+
 
 #endif
