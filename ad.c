@@ -12,6 +12,8 @@ const char* get_optype_string(OPTYPE op){
 			return "sub";
 		case(MUL):
 			return "mul";
+		case(DIV):
+			return "div";
 		case(POW):
 			return "pow";
 		case (SIGMOID):
@@ -133,6 +135,19 @@ ad_value* ad_value_mul(ad_value* inp1, ad_value* inp2){
 	return out;
 }
 
+ad_value* ad_value_div	(ad_value* inp1, ad_value* inp2){
+	ad_value* out = ad_value_alloc(inp1->data / inp2->data);
+	out->op = DIV;
+	out->previous[0] = inp1;
+	out->previous[1] = inp2;
+	out->previous[0]->ref_count++;
+	out->previous[1]->ref_count++;
+	return out;
+
+}
+
+
+
 ad_value* ad_value_pow(ad_value* inp1, ad_value* exponent){
 	ad_value* out = ad_value_alloc(pow(inp1->data, exponent->data));
 	out->op = POW;
@@ -219,6 +234,10 @@ void grad(ad_value* out){
 			out->previous[0]->grad += out->grad * out->previous[1]->data; 
 			out->previous[1]->grad += out->grad * out->previous[0]->data; 
 			break; 
+		case DIV: 
+			out->previous[0]->grad += out->grad * 1 / out->previous[1]->data; 
+			out->previous[1]->grad += out->grad * (-out->previous[0]->data / (pow(out->previous[1]->data, 2))); 
+			break; 
 		case POW:
 			out->previous[0]->grad += out->grad * out->previous[1]->data * pow(out->previous[0]->data, out->previous[1]->data - 1) ;
 			out->previous[1]->grad += out->grad * (out->data * log(out->previous[0]->data)) ;
@@ -275,8 +294,6 @@ void ad_value_backward(ad_value* out){
 	out->grad = 1.0;
 	for(int i = sorted_size - 1; i >=0; i--){
 		grad(sorted[i]);
-		ad_value_print(sorted[i]);
-		printf("\n");
 	}
 }
 
@@ -398,30 +415,59 @@ double 	ad_matrix_min(ad_matrix* m){
 
 ad_matrix* ad_matrix_softmax(ad_matrix* x){
 	assert(x!=NULL);
-	double max = ad_matrix_max(x);
-	ad_matrix* softmax = ad_matrix_alloc(x->rows, x->cols);
-	for(uint i = 0; i < softmax->size; i++){
-		softmax->data[i].data -= max;
-		softmax->data[i].data = exp(softmax->data[i].data);
+	ad_matrix* out = ad_matrix_alloc(x->rows, x->cols);
+	for(uint i = 0; i < x->rows; i++){
+		ad_value* row = &x->data[i*x->cols];
+		ad_value** exps = malloc(x->cols * sizeof(ad_value*));
+		for(uint j = 0; j < x->cols; j++){
+			exps[j] = ad_value_exp(&row[j]);
+		}
+		ad_value* sum = ad_value_alloc(0);
+		for(uint j = 0; j < x->cols; j++){
+			ad_value* new_sum = ad_value_add(sum, exps[j]);
+			ad_value_free(sum);
+			sum = new_sum;
+		}
+		for(uint j = 0; j < x->cols; j++){
+			out->data[offset(out, i, j)] = *ad_value_div(exps[j], sum); // assign the value of the division to the output
+			ad_value_free(exps[j]);
+		}
+		ad_value_free(sum);
+		free(exps);
 	}
-	double sum = ad_matrix_sum(softmax);
-	for(uint i = 0; i < softmax->size; i++){
-		softmax->data[i].data /= sum;
-	}
-	return softmax;
+	return out;
 }
 
 ad_matrix* ad_matrix_rmsnorm(ad_matrix* x){
 	assert(x!=NULL);
-	double ss = 0;
-	for(uint i = 0; i < x->size; i++){
-		ss += pow(x->data[i].data, 2);  
-	}
-	ss /= x->size;
-	float rms = 1.0 / sqrt(ss + (double)1e-8);
+
 	ad_matrix* out = ad_matrix_alloc(x->rows, x->cols);
+	ad_value* rms = ad_value_alloc(0);
+	ad_value* constant = ad_value_alloc(2);
+	for(uint i = 0; i < x->rows; i++){
+		ad_value* row = &(x->data[offset(x, i, 0)]);
+		for(uint j = 0; j < x->cols; j++){
+			ad_value* exponent = ad_value_pow(&row[j], constant);
+			ad_value* new_sum = ad_value_add(rms, exponent);
+			ad_value_free(rms);
+			ad_value_free(exponent);
+			rms = new_sum;
+		}
+	}
+	ad_value_free(constant);
+	ad_value* scale = ad_value_alloc(1.0/x->size);
+	ad_value* scaled = ad_value_mul(rms, scale);
+	constant = ad_value_alloc(0.5);
+	ad_value* rms_final = ad_value_pow(scaled, constant);
+	ad_value_free(constant);
+	ad_value_free(scale);
+	ad_value_free(scaled);
+	ad_value_free(rms);
+
 	for(uint i = 0; i < x->size; i++){
-		out->data[i].data = x->data[i].data * rms;
+		ad_value* result = (ad_value_div(&x->data[i], rms_final)) ; 
+		out->data[i] = *result;
+		ad_value_free(result);
 	}
 	return out;
 }

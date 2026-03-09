@@ -45,6 +45,9 @@ typedef struct params {
 } params;
 params* params_init(state_dict* sd);
 void params_free(params* p);
+
+
+
 ad_matrix* gpt(state_dict* sd, int token_id, int pos_id, ad_matrix* keys, ad_matrix* values);
 
 

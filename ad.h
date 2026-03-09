@@ -19,6 +19,7 @@ typedef enum {
 	ADD,
 	SUB,
 	MUL,
+	DIV,
 	POW,
 	SIGMOID,
 	TANH,
@@ -48,6 +49,7 @@ void ad_value_free		(ad_value* val);
 ad_value* ad_value_add	(ad_value* inp1, ad_value* inp2);
 ad_value* ad_value_sub	(ad_value* inp1, ad_value* inp2);
 ad_value* ad_value_mul	(ad_value* inp1, ad_value* inp2);
+ad_value* ad_value_div	(ad_value* inp1, ad_value* inp2);
 ad_value* ad_value_pow	(ad_value* inp1, ad_value* exponent);
 ad_value* ad_value_sigmoid(ad_value* inp1);
 ad_value* ad_value_tanh	(ad_value* inp1);
