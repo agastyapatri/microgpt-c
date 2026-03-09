@@ -96,6 +96,10 @@ ad_value* ad_value_random_gauss(double mu, double sigma){
 void ad_value_free(ad_value* val){
 	val->ref_count--;
 	if(val->ref_count == 0){
+		if(val->previous[0])
+			ad_value_free(val->previous[0]);
+		if(val->previous[1])
+			ad_value_free(val->previous[1]);
 		free(val);
 	}
 }
@@ -363,6 +367,16 @@ ad_matrix* ad_matrix_random_normal(int nrows, int ncols, double mu, double sigma
 
 void ad_matrix_free(ad_matrix* m){
 	assert(m!=NULL);
+	for(uint i = 0; i < m->size; i++){
+		if(m->data[i].previous[0] != NULL){
+			ad_value_free((m->data[i].previous[0]));
+			(m->data[i].previous[0] = NULL);
+		}
+		if(m->data[i].previous[1] != NULL){
+			ad_value_free((m->data[i].previous[1]));
+			(m->data[i].previous[1] = NULL);
+		} 
+	}
 	free(m->data);
 	free(m);
 }
@@ -465,10 +479,14 @@ ad_matrix* ad_matrix_rmsnorm(ad_matrix* x){
 	ad_value_free(rms);
 
 	for(uint i = 0; i < x->size; i++){
-		ad_value* result = (ad_value_div(&x->data[i], rms_final)) ; 
-		out->data[i] = *result;
-		ad_value_free(result);
+		out->data[i].data = x->data[i].data / rms_final->data;
+		out->data[i].op = DIV;
+		out->data[i].previous[0] = &x->data[i];
+		out->data[i].previous[1] = rms_final;
+		x->data[i].ref_count++;
+		rms_final->ref_count++;
 	}
+	ad_value_free(rms_final);
 	return out;
 }
 
