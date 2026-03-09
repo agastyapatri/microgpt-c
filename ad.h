@@ -67,19 +67,19 @@ typedef struct ad_matrix{
 	uint rows; 			// rows  
 	uint cols;  		// cols 
 	uint size;			// rows*cols
-	ad_value* data;		// flat representation; ad_matrix.data is an array of ad_value.
+	ad_value** data;    // flat representation; ad_matrix.data is an array of ad_value.
 } ad_matrix;
 #define offset(m, i, j) (i*m->cols + j)
-#define get(m, i, j) (m->data[i*m->cols + j].data)
-#define set(m, i, j, value) (m->data[i*m->cols + j].data = value)
+#define get(m, i, j) (m->data[i*m->cols + j]->data)
+#define set(m, i, j, value) (m->data[i*m->cols + j]->data = value)
 #define rand_double() (rand()/(double)RAND_MAX);
-#define AD_MATRIX_RANDOM_INIT(matrix, size, mu, sigma)	for(uint j = 0; j < size; j++){						\
-															matrix->data[j].data = rand_normal(mu, sigma);  \
-															matrix->data[j].grad = 0; 						\
-															matrix->data[j].op = NONE;  					\
-															matrix->data[j].ref_count = 1; 					\
-															matrix->data[j].previous[0] = NULL; 			\
-															matrix->data[j].previous[1] = NULL; 			\
+#define AD_MATRIX_RANDOM_INIT(matrix, size, mu, sigma)	for(uint j = 0; j < size; j++){						 \
+															matrix->data[j]->data = rand_normal(mu, sigma);  \
+															matrix->data[j]->grad = 0; 						 \
+															matrix->data[j]->op = NONE;  					 \
+															matrix->data[j]->ref_count = 1; 			     \
+															matrix->data[j]->previous[0] = NULL; 			 \
+															matrix->data[j]->previous[1] = NULL; 			 \
 														}
 
 #define AD_MATRIX_SHAPE_INIT(matrix, nrows, ncols)	matrix->rows = nrows;		 	\

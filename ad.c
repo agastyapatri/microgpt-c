@@ -308,18 +308,13 @@ ad_matrix* ad_matrix_alloc(uint nrows, uint ncols){
 		return NULL;
 	}
 	AD_MATRIX_SHAPE_INIT(m, nrows, ncols);
-	m->data = (ad_value*)malloc(size * sizeof(ad_value));
+	m->data = (ad_value**)malloc(size * sizeof(ad_value*));
 	if(!m->data){
 		free(m);
 		return NULL;
 	}
 	for(uint i = 0; i < size; i++){
-		m->data[i].data = 0; 
-		m->data[i].grad = 0; 
-		m->data[i].op = NONE; 
-		m->data[i].ref_count = 1;
-		m->data[i].previous[0] = NULL;
-		m->data[i].previous[1] = NULL;
+		m->data[i] = ad_value_alloc(0);
 	} 
 	return m;
 }
@@ -331,7 +326,7 @@ void ad_matrix_print(ad_matrix* m){
 		if(i > 0)
 			printf("          [");
 		for(uint j = 0; j < m->cols; j++){
-			double data = m->data[offset(m, i, j)].data;
+			double data = m->data[offset(m, i, j)]->data;
 			if(data >= 0)
 				printf("%10.8f", data);
 			else
@@ -348,34 +343,16 @@ void ad_matrix_print(ad_matrix* m){
 
 
 ad_matrix* ad_matrix_random_normal(int nrows, int ncols, double mu, double sigma){
-	uint size = nrows * ncols; 
-	ad_matrix* m = (ad_matrix*)malloc(sizeof(ad_matrix));
-	if(!m){
-		return NULL;
-	}
-	m->rows = nrows; 
-	m->cols = ncols;
-	m->size = size;
-	m->data = (ad_value*)malloc(size * sizeof(ad_value));
-	if(!m->data){
-		free(m);
-		return NULL;
-	}
-	AD_MATRIX_RANDOM_INIT(m, size, mu, sigma);
+	ad_matrix* m = ad_matrix_alloc(nrows, ncols);
+	for(uint i = 0; i < m->size; i++)
+		m->data[i]->data = rand_normal(mu, sigma);
 	return m;
 }
 
 void ad_matrix_free(ad_matrix* m){
 	assert(m!=NULL);
 	for(uint i = 0; i < m->size; i++){
-		if(m->data[i].previous[0] != NULL){
-			ad_value_free((m->data[i].previous[0]));
-			(m->data[i].previous[0] = NULL);
-		}
-		if(m->data[i].previous[1] != NULL){
-			ad_value_free((m->data[i].previous[1]));
-			(m->data[i].previous[1] = NULL);
-		} 
+		ad_value_free(m->data[i]);
 	}
 	free(m->data);
 	free(m);
@@ -385,7 +362,7 @@ double ad_matrix_sum(ad_matrix* m){
 	assert(m!=NULL);
 	double _sum = 0.0; 
 	for(uint i = 0; i < m->size; i++)
-		_sum += m->data[i].data;
+		_sum += m->data[i]->data;
 	return _sum;
 }
 
@@ -399,7 +376,7 @@ double ad_matrix_std(ad_matrix* m){
 	double mu = ad_matrix_mean(m);
 	double sigma = 0.0;
 	for(uint i = 0; i < m->size; i++){
-		sigma += (m->data[i].data - mu)*(m->data[i].data - mu);
+		sigma += (m->data[i]->data - mu)*(m->data[i]->data - mu);
 	}
 	sigma/=m->size;
 	return sqrt(sigma);
@@ -409,8 +386,8 @@ double 	ad_matrix_max(ad_matrix* m){
 	assert(m!=NULL);
 	double max = 0;
 	for(uint i = 0; i < m->size; i++){
-		if(m->data[i].data > max){
-			max = m->data[i].data;
+		if(m->data[i]->data > max){
+			max = m->data[i]->data;
 		}
 	}
 	return max;
@@ -420,8 +397,8 @@ double 	ad_matrix_min(ad_matrix* m){
 	assert(m!=NULL);
 	double max = (double)1e9;
 	for(uint i = 0; i < m->size; i++){
-		if(m->data[i].data < max){
-			max = m->data[i].data;
+		if(m->data[i]->data < max){
+			max = m->data[i]->data;
 		}
 	}
 	return max;
@@ -431,10 +408,9 @@ ad_matrix* ad_matrix_softmax(ad_matrix* x){
 	assert(x!=NULL);
 	ad_matrix* out = ad_matrix_alloc(x->rows, x->cols);
 	for(uint i = 0; i < x->rows; i++){
-		ad_value* row = &x->data[i*x->cols];
 		ad_value** exps = malloc(x->cols * sizeof(ad_value*));
 		for(uint j = 0; j < x->cols; j++){
-			exps[j] = ad_value_exp(&row[j]);
+			exps[j] = ad_value_exp(x->data[offset(x, i, j)]);
 		}
 		ad_value* sum = ad_value_alloc(0);
 		for(uint j = 0; j < x->cols; j++){
@@ -443,7 +419,8 @@ ad_matrix* ad_matrix_softmax(ad_matrix* x){
 			sum = new_sum;
 		}
 		for(uint j = 0; j < x->cols; j++){
-			out->data[offset(out, i, j)] = *ad_value_div(exps[j], sum); // assign the value of the division to the output
+			ad_value_free(out->data[offset(out, i, j)]);
+			out->data[offset(out, i, j)] = ad_value_div(exps[j], sum); // assign the value of the division to the output
 			ad_value_free(exps[j]);
 		}
 		ad_value_free(sum);
@@ -453,15 +430,13 @@ ad_matrix* ad_matrix_softmax(ad_matrix* x){
 }
 
 ad_matrix* ad_matrix_rmsnorm(ad_matrix* x){
-	assert(x!=NULL);
-
+	assert(x != NULL);
 	ad_matrix* out = ad_matrix_alloc(x->rows, x->cols);
 	ad_value* rms = ad_value_alloc(0);
 	ad_value* constant = ad_value_alloc(2);
 	for(uint i = 0; i < x->rows; i++){
-		ad_value* row = &(x->data[offset(x, i, 0)]);
 		for(uint j = 0; j < x->cols; j++){
-			ad_value* exponent = ad_value_pow(&row[j], constant);
+			ad_value* exponent = ad_value_pow(x->data[offset(x, i, j)], constant);
 			ad_value* new_sum = ad_value_add(rms, exponent);
 			ad_value_free(rms);
 			ad_value_free(exponent);
@@ -479,16 +454,13 @@ ad_matrix* ad_matrix_rmsnorm(ad_matrix* x){
 	ad_value_free(rms);
 
 	for(uint i = 0; i < x->size; i++){
-		out->data[i].data = x->data[i].data / rms_final->data;
-		out->data[i].op = DIV;
-		out->data[i].previous[0] = &x->data[i];
-		out->data[i].previous[1] = rms_final;
-		x->data[i].ref_count++;
-		rms_final->ref_count++;
+		ad_value_free(out->data[i]);
+		out->data[i] = ad_value_div(x->data[i], rms_final);
 	}
 	ad_value_free(rms_final);
 	return out;
 }
+
 
 ad_matrix* ad_matrix_matmul(ad_matrix* x, ad_matrix* y){
 	assert(x!=NULL);
@@ -499,7 +471,7 @@ ad_matrix* ad_matrix_matmul(ad_matrix* x, ad_matrix* y){
 		for(uint k = 0; k < x->cols; k++){
 			double x_ik = get(x, i, k);
 			for(uint j = 0; j < y->cols; j++){
-				out->data[offset(out, i, j)].data += x_ik * y->data[offset(y, k, j)].data;
+				out->data[offset(out, i, j)]->data += x_ik * y->data[offset(y, k, j)]->data;
 			}
 		}
 	}
