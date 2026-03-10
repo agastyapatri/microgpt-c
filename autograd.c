@@ -1,6 +1,7 @@
 #include "autograd.h"
 #include "matrix.h"
 #include "matrix_math.h"
+#include <assert.h>
 #include <stdlib.h>
 void matrix_one_grad(matrix* out){
 	for(size_t i = 0; i < out->size; i++)
@@ -124,12 +125,13 @@ void ad_cos_backward(matrix* out){
 }
 
 void ad_sigmoid_backward(matrix* out){
+	assert(out->op == SIGMOID);
 	for(size_t i = 0; i < out->rows; i++){
 		double* ogradrow = out->grad + (i * out->stride);
-		double* p0datarow = out->previous[0]->data + (i * out->stride);
+		double* odatarow = out->data + (i * out->stride);
 		double* p0gradrow = out->previous[0]->grad + (i * out->stride);
 		for(size_t j = 0; j < out->cols; j++){
-			p0gradrow[j] += ogradrow[j] * dsigmoid(p0datarow[j]);
+			p0gradrow[j] += ogradrow[j] * odatarow[j]*(1 - odatarow[j]);
 		}
 	}
 }
@@ -146,23 +148,60 @@ void ad_relu_backward(matrix* out){
 }
 
 void ad_softmax_backward(matrix* out){
+	assert(out->op == SOFTMAX);
 	size_t rows = out->rows; 
 	size_t cols = out->cols; 
 	size_t stride = out->stride; 
+	matrix* p0 = out->previous[0];
+	if(!p0->requires_grad)
+		return;
 	for(size_t i = 0; i < rows; i++){
 		double* ogradrow = out->grad + (i * stride);
 		double* odatarow = out->data + (i * stride);
-		double* pgradrow = out->previous[0]->grad + (i * stride);
+		double* pgradrow = p0->grad + (i * stride);
+		double dot = 0.0;
 		for(size_t j = 0; j < cols; j++){
-			if(i == j){
-				pgradrow[j] += ogradrow[j]*odatarow[j]*(1 - odatarow[j]);
-			}
-			else{
-				pgradrow[j] += ogradrow[j] * -(odatarow[i] * odatarow[j]);
-			}
+			dot += odatarow[j]*ogradrow[j];
+		} 
+		for(size_t j = 0; j < cols; j++){
+			pgradrow[j] += odatarow[j] * (ogradrow[j] - dot);
 		} 
 	}
 }
+
+
+
+void ad_rmsnorm_backward(matrix* out){
+	assert(out->op == RMSNORM);
+	size_t rows = out->rows;
+	size_t cols = out->cols; 
+	size_t stride =  out->stride;
+	matrix* p0 = out->previous[0];
+	if(!p0->requires_grad)
+		return;
+	for(size_t i = 0; i < rows; i++){
+		double* p0datarow =  p0->data + (i*stride);
+		double* p0gradrow =  p0->grad + (i*stride);
+		double* outgradrow =  out->grad + (i*stride);
+		double rms = 0.0;
+		for(size_t j = 0; j < cols; j++){
+			rms += (p0datarow[j]*p0datarow[j]);
+		}
+		rms /= cols ;
+		rms = sqrt(rms +  EPSILON);
+		double dot = 0.0;
+		for(size_t j = 0; j < cols; j++){
+			dot += outgradrow[j] * p0datarow[j];
+		}
+		double inv_rms = 1.0 / rms;
+		double scale = dot / (cols * rms * rms);
+		for(size_t j = 0; j < cols; j++){
+			p0gradrow[j] += inv_rms * (outgradrow[j] - p0datarow[j]*scale);
+		}
+	}
+}
+
+
 
 
 void ad_sum_backward(matrix* out){
@@ -204,13 +243,17 @@ void ad_std_backward(matrix* out){
 
 
 void ad_matmul_backward(matrix* out){
+	assert(out->op == MATMUL);
 	matrix* inp0 = out->previous[0];
 	matrix* inp1 = out->previous[1];
-	matrix* inp0transpose = matrix_transpose(inp0); // inp0->cols x inp0->rows
-	matrix* inp1transpose = matrix_transpose(inp1); // inp1->cols x inp1->rows
-	matrix* outgrad = matrix_from_raw(out->grad, out->rows, out->cols); // out->rows x out->cols == inp0->rows x inp1->cols
-	matrix* dinp0 = matrix_matmul(outgrad, inp1transpose); // inp0->rows x inp1->rows 
-	matrix* dinp1 = matrix_matmul(inp0transpose, outgrad); // inp0->cols x inp1->cols 
+	matrix* inp0transpose = matrix_transpose(inp0); 
+	matrix* inp1transpose = matrix_transpose(inp1); 
+	matrix* outgrad = matrix_from_raw(out->grad, out->rows, out->cols); 
+	matrix* dinp0 = matrix_matmul(outgrad, inp1transpose); 
+	matrix* dinp1 = matrix_matmul(inp0transpose, outgrad); 
+	assert(dinp0->requires_grad == 0);
+	assert(dinp1->requires_grad == 0);
+
 	for(size_t i = 0; i < inp0->rows; i++){
 		double* inp0row = inp0->grad + (i * inp0->stride);
 		double* dinp0row = dinp0->data + (i * dinp0->stride);
@@ -315,6 +358,9 @@ void matrix_grad(matrix* out){
 		case SOFTMAX: 
 			ad_softmax_backward(out);
 			return;
+		case RMSNORM: 
+			ad_rmsnorm_backward(out);
+			return;
 		case NONE: 
 			return;
 	}
@@ -341,7 +387,11 @@ void ad_graph_sort(matrix* out, matrix** sorted, int* tape_size, matrix** visite
 void matrix_backward(matrix* out){
 	matrix_one_grad(out);
 	matrix** sorted = (matrix**)malloc(GRAPH_POPULATION*sizeof(matrix*));
+	if(!sorted)
+		return;
 	matrix** visited = (matrix**)malloc(GRAPH_POPULATION*sizeof(matrix*));
+	if(!visited)
+		return;
 	int tape_len = 0; 
 	int visited_len = 0; 
 	ad_graph_sort(out, sorted, &tape_len, visited, &visited_len);

@@ -1,4 +1,5 @@
-#include "ad.h"
+#include "autograd.h"
+#include "matrix.h"
 #include "utils.h"
 #include <stdio.h>
 #include <string.h>
@@ -7,7 +8,7 @@
 #define N_EMBD 16						//	embedding dimension 
 #define N_HEAD 4						//	number of attention heads 
 #define N_LAYER 1						//	number of layers 
-#define BLOCK_SIZE 16					//	maximum sequence length
+#define GPT_BLOCK_SIZE 16					//	maximum sequence length
 #define HEAD_DIM (int)(N_EMBD / N_HEAD) // dimensionality of each head
 #define LEARNING_RATE (double)1e-2
 #define BETA1 0.85 
@@ -22,9 +23,10 @@ int main(void){
 	load_names(FILENAME, name_list);
 	tokenizer t = {.BOS = 0, .vocab_size = 0};
 	tokenizer_init(&t, name_list);
-	state_dict* sd = state_dict_init(N_EMBD, N_HEAD, N_LAYER, BLOCK_SIZE, t.vocab_size);
+	state_dict* sd = state_dict_init(N_EMBD, N_HEAD, N_LAYER, GPT_BLOCK_SIZE, t.vocab_size);
 
-	// params* params = params_init(sd);
+
+
 
 
 

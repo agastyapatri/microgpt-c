@@ -5,7 +5,7 @@
 #include <string.h>
 
 #ifndef GRAPH_POPULATION
-#define GRAPH_POPULATION 32
+#define GRAPH_POPULATION 1, 128
 #endif
 void matrix_zero_grad(matrix* out);
 void matrix_grad(matrix* out);

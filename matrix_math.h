@@ -215,6 +215,22 @@ static inline void BUF_SOFTMAX(double* inp1, double* out, size_t rows, size_t co
 	}
 }
 
+static inline void BUF_RMSNORM(double* inp1, double* out, size_t rows, size_t cols, size_t stride){
+	for(size_t i = 0; i < rows; i++){
+		double rms = 0;
+		for(size_t j = 0; j < cols; j++){
+			rms += inp1[i*stride + j]*inp1[i*stride + j];
+		} 
+		rms /= (cols);
+		rms = sqrt(rms + EPSILON);
+		double inv_rms = 1/rms;
+		for(size_t j = 0; j < cols; j++){
+			out[i*stride + j] = inp1[i*stride + j] * inv_rms;
+		} 
+
+	}
+}
+
 static inline void BUF_SUB(double* inp1, double* inp2, double* out, size_t rows, size_t cols, size_t stride){
 	size_t vector_limit = (cols / 4) * 4;
 	for(size_t i = 0; i < rows; i++){
@@ -387,6 +403,8 @@ static inline char* get_optype_string(OPTYPE op){
 			return "log";
 		case EXP: 
 			return "exp";
+		case RMSNORM: 
+			return "rmsnorm";
 		case MATMUL: 
 			return "matmul";
 		case TANH: 

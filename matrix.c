@@ -95,19 +95,12 @@ matrix* matrix_eye(int SIDE, bool requires_grad){
 }
 
 matrix* matrix_transpose(matrix* m){
-	matrix* out = (matrix*)malloc(sizeof(matrix));
-	out->rows = m->cols;
-	out->cols = m->rows;
-	out->size = m->size;
-	out->data = m->data;
-	out->stride = out->cols;
-	out->padding = 0;
-	out->size = m->size;
-	out->bytes = m->size;
-	out->ref_count = m->ref_count;
-	out->requires_grad = m->requires_grad;
-	out->grad = m->grad;
-	m->ref_count++;
+	matrix* out = matrix_alloc(m->cols, m->rows, false);
+	for(size_t i = 0; i < m->rows; i++){
+		for(size_t j = 0; j < m->cols; j++){
+			out->data[offset(out, j, i)] = m->data[offset(m, i, j)];
+		} 
+	}
 	return out;
 }
 
@@ -271,6 +264,20 @@ matrix* matrix_softmax(matrix* inp1){
 	BUF_SOFTMAX(inp1->data, out->data, inp1->rows, inp1->cols, inp1->stride);
 	if(out->requires_grad){
 		out->op = SOFTMAX;
+		out->previous[0] = inp1;
+		out->previous[1] = NULL;
+		out->num_prevs = 1;
+		inp1->ref_count++;
+	}
+	return out;
+}
+
+matrix* matrix_rmsnorm(matrix* inp1){
+	assert(!MATRIX_NULL(inp1));
+	matrix* out = matrix_alloc(inp1->rows, inp1->cols, inp1->requires_grad);
+	BUF_RMSNORM(inp1->data, out->data, inp1->rows, inp1->cols, inp1->stride);
+	if(out->requires_grad){
+		out->op = RMSNORM;
 		out->previous[0] = inp1;
 		out->previous[1] = NULL;
 		out->num_prevs = 1;
@@ -656,6 +663,34 @@ matrix* matrix_from_raw(double* arr, size_t rows, size_t cols){
 	out->grad = NULL;
 	return out;
 }
+
+matrix* matrix_get_row(matrix* inp1, size_t row_idx){
+	matrix* out = matrix_alloc(1, inp1->cols, inp1->requires_grad);
+	for(size_t i = 0; i < out->cols; i++)
+		out->data[offset(out, 0, i)] = inp1->data[offset(inp1, row_idx, i)];
+	return out;
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 #ifdef PLOT 
 #define _POSIX_C_SOURCE 200809L
