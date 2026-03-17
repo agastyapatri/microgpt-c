@@ -1,6 +1,5 @@
 #include "utils.h"
 // #include "ad.h"
-#include "matrix.h"
 #include <assert.h>
 #include <stdbool.h>
 #include <stdio.h> 
@@ -27,8 +26,9 @@ void load_names(char* file_name, char word_list[][NAMEBUF]){
 	fclose(names);
 	//	shuffling the names
 	for(int i = NUM_INPUTS - 1; i > 0; i--){
+		char temp[NAMEBUF];
 		int j = rand() % (i + 1);
-		char* temp = word_list[i];
+		strncpy(temp, word_list[i], NAMEBUF);
 		strncpy(word_list[i], word_list[j], NAMEBUF);
 		strncpy(word_list[j], temp, NAMEBUF);
 	}
@@ -57,27 +57,20 @@ void tokenizer_init(tokenizer* t, const char name_list[][NAMEBUF]){
 	t->vocab_size++;
 }
 
-int tokenizer_get_token(tokenizer* t, const char c){
+
+//	converts a character to its integer encoding
+int tokenizer_encode(tokenizer* t, char c){
 	for(int i = 0; i < t->vocab_size-1; i++){
 		if(c == t->uchars[i]){
 			return i;
 		}
 	}
-	return t->BOS;
+	return -999;
 }
 
-
-matrix* tokenizer_apply(tokenizer* t, const char* word){
-	int word_len = strlen(word);
-	matrix* tokens = matrix_alloc(1, 2 + word_len, 0);
-	for(int i = 0; i < word_len-1; i++){
-		tokens->data[i+1] = tokenizer_get_token(t, word[i]);
-	}
-	tokens->data[0] = t->BOS;
-	tokens->data[word_len + 1] = t->BOS;
-	return tokens;
+char tokenizer_decode(tokenizer* t, int n){
+	return t->uchars[n];
 }
-
 
 
 
@@ -94,94 +87,95 @@ state_dict* state_dict_init(size_t embd_dim, size_t num_heads, size_t num_layers
 	sd->num_layers = num_layers;
 	sd->block_size = block_size;
 	sd->head_dim = head_dim;
-	sd->wte = matrix_random_normal(vocab_size, embd_dim, mu, sigma, 1);
-	sd->wpe = matrix_random_normal(block_size, embd_dim, mu, sigma, 1);
-	sd->lm_head = matrix_random_normal(vocab_size, embd_dim, mu, sigma, 1);
-	sd->attn_wq  = (matrix**)malloc(num_layers * sizeof(matrix*));
+	sd->wte = ad_matrix_random_normal(vocab_size, embd_dim, mu, sigma);
+	sd->wpe = ad_matrix_random_normal(block_size, embd_dim, mu, sigma);
+	sd->lm_head = ad_matrix_random_normal(vocab_size, embd_dim, mu, sigma);
+	sd->attn_wq  = (ad_matrix**)malloc(num_layers * sizeof(ad_matrix*));
 	if(!sd->attn_wq){ 
-		matrix_free(sd->wte);
-		matrix_free(sd->wpe);
-		matrix_free(sd->lm_head);
+		ad_matrix_free(sd->wte);
+		ad_matrix_free(sd->wpe);
+		ad_matrix_free(sd->lm_head);
 		free(sd);
 		return NULL;
 	}
-	sd->attn_wk  = (matrix**)malloc(num_layers * sizeof(matrix*));
+	sd->attn_wk  = (ad_matrix**)malloc(num_layers * sizeof(ad_matrix*));
 	if(!sd->attn_wk){ 
 		free(sd->attn_wq);
-		matrix_free(sd->wte);
-		matrix_free(sd->wpe);
-		matrix_free(sd->lm_head);
+		ad_matrix_free(sd->wte);
+		ad_matrix_free(sd->wpe);
+		ad_matrix_free(sd->lm_head);
 		free(sd);
 		return NULL;
 	}
-	sd->attn_wv  = (matrix**)malloc(num_layers * sizeof(matrix*));
+	sd->attn_wv  = (ad_matrix**)malloc(num_layers * sizeof(ad_matrix*));
 	if(!sd->attn_wv){ 
 		free(sd->attn_wk);
 		free(sd->attn_wq);
-		matrix_free(sd->wte);
-		matrix_free(sd->wpe);
-		matrix_free(sd->lm_head);
+		ad_matrix_free(sd->wte);
+		ad_matrix_free(sd->wpe);
+		ad_matrix_free(sd->lm_head);
 		free(sd);
 		return NULL;
 	}
-	sd->attn_wo  = (matrix**)malloc(num_layers * sizeof(matrix*));
+	sd->attn_wo  = (ad_matrix**)malloc(num_layers * sizeof(ad_matrix*));
 	if(!sd->attn_wo){ 
 		free(sd->attn_wv);
 		free(sd->attn_wk);
 		free(sd->attn_wq);
-		matrix_free(sd->wte);
-		matrix_free(sd->wpe);
-		matrix_free(sd->lm_head);
+		ad_matrix_free(sd->wte);
+		ad_matrix_free(sd->wpe);
+		ad_matrix_free(sd->lm_head);
 		free(sd);
 		return NULL;
 	}
-	sd->mlp_fc1  = (matrix**)malloc(num_layers * sizeof(matrix*));
+	sd->mlp_fc1  = (ad_matrix**)malloc(num_layers * sizeof(ad_matrix*));
 	if(!sd->mlp_fc1){ 
 		free(sd->attn_wo);
 		free(sd->attn_wv);
 		free(sd->attn_wk);
 		free(sd->attn_wq);
-		matrix_free(sd->wte);
-		matrix_free(sd->wpe);
-		matrix_free(sd->lm_head);
+		ad_matrix_free(sd->wte);
+		ad_matrix_free(sd->wpe);
+		ad_matrix_free(sd->lm_head);
 		free(sd);
 		return NULL;
 	}
 
-	sd->mlp_fc2  = (matrix**)malloc(num_layers * sizeof(matrix*));
+	sd->mlp_fc2  = (ad_matrix**)malloc(num_layers * sizeof(ad_matrix*));
 	if(!sd->mlp_fc2){ 
 		free(sd->mlp_fc1);
 		free(sd->attn_wo);
 		free(sd->attn_wv);
 		free(sd->attn_wk);
 		free(sd->attn_wq);
-		matrix_free(sd->wte);
-		matrix_free(sd->wpe);
-		matrix_free(sd->lm_head);
+		ad_matrix_free(sd->wte);
+		ad_matrix_free(sd->wpe);
+		ad_matrix_free(sd->lm_head);
 		free(sd);
 		return NULL;
 	}
 
 	for(size_t i = 0; i < num_layers; i++){
-		sd->attn_wq[i] = matrix_random_normal(embd_dim, embd_dim, mu, sigma, 1);
-		sd->attn_wk[i] = matrix_random_normal(embd_dim, embd_dim, mu, sigma, 1);
-		sd->attn_wv[i] = matrix_random_normal(embd_dim, embd_dim, mu, sigma, 1);
-		sd->attn_wo[i] = matrix_random_normal(embd_dim, embd_dim, mu, sigma, 1);
-		sd->mlp_fc1[i] = matrix_random_normal(4*embd_dim, embd_dim, mu, sigma, 1);
-		sd->mlp_fc2[i] = matrix_random_normal(embd_dim, 4*embd_dim, mu, sigma, 1);
+		sd->attn_wq[i] = ad_matrix_random_normal(embd_dim, embd_dim, mu, sigma);
+		sd->attn_wk[i] = ad_matrix_random_normal(embd_dim, embd_dim, mu, sigma);
+		sd->attn_wv[i] = ad_matrix_random_normal(embd_dim, embd_dim, mu, sigma);
+		sd->attn_wo[i] = ad_matrix_random_normal(embd_dim, embd_dim, mu, sigma);
+		sd->mlp_fc1[i] = ad_matrix_random_normal(4*embd_dim, embd_dim, mu, sigma);
+		sd->mlp_fc2[i] = ad_matrix_random_normal(embd_dim, 4*embd_dim, mu, sigma);
 	}
 	return sd;
-}
+} 
+
 
 void state_dict_free(state_dict* sd){
-	assert(sd!=NULL);
+	assert(sd != NULL);
 	for(size_t i = 0; i < sd->num_layers; i++){
-		matrix_free(sd->mlp_fc2[i]);
-		matrix_free(sd->mlp_fc1[i]);
-		matrix_free(sd->attn_wo[i]);
-		matrix_free(sd->attn_wv[i]);
-		matrix_free(sd->attn_wk[i]);
-		matrix_free(sd->attn_wq[i]);
+		ad_matrix_free(sd->attn_wq[i]);
+		ad_matrix_free(sd->attn_wk[i]);
+		ad_matrix_free(sd->attn_wv[i]);
+		ad_matrix_free(sd->attn_wo[i]);
+		ad_matrix_free(sd->mlp_fc1[i]);
+		ad_matrix_free(sd->mlp_fc2[i]);
 	}
 	free(sd->mlp_fc2);
 	free(sd->mlp_fc1);
@@ -189,12 +183,24 @@ void state_dict_free(state_dict* sd){
 	free(sd->attn_wv);
 	free(sd->attn_wk);
 	free(sd->attn_wq);
-	matrix_free(sd->wte);
-	matrix_free(sd->wpe);
-	matrix_free(sd->lm_head);
+	ad_matrix_free(sd->wte);
+	ad_matrix_free(sd->wpe);
+	ad_matrix_free(sd->lm_head);
 	free(sd);
+
 }
 
+// ad_matrix* gpt(state_dict* sd, int token_id, int pos_id, ad_matrix* keys, ad_matrix* values){
+// 	ad_matrix* tok_emb = ad_matrix_get_row(sd->wte, token_id);//	token embeddings 
+// 	ad_matrix* pos_emb = ad_matrix_get_row(sd->wte, pos_id);  //	position embeddings
+// 	ad_matrix* x = ad_matrix_add(tok_emb, pos_emb);			  //	joint embeddings
+// 	ad_matrix* x_rms = ad_matrix_rmsnorm(x);
+// 	ad_matrix_free(tok_emb);
+// 	ad_matrix_free(pos_emb);
+// 	ad_matrix_free(x_rms);
+// 	ad_matrix_free(x);
+// 	return tok_emb;
+// }
 
 // params* params_init(state_dict* sd){
 // 	assert(sd != NULL);
@@ -211,31 +217,38 @@ void state_dict_free(state_dict* sd){
 // 		num_params += sd->mlp_fc2[i]->size;
 // 	}
 // 	params* p = (params*)malloc(sizeof(params));
+// 	if(!p)	return NULL;
 // 	p->num_params = num_params;
-// 	p->param_list = (ad_value*)malloc(num_params * sizeof(ad_value));
-// 	int offset = 0;
-// 	memcpy(p->param_list, sd->wte->data, sd->wte->size * sizeof(ad_value));
-// 	offset+=sd->wte->size;
-// 	memcpy(p->param_list + offset, sd->wpe->data, sd->wpe->size * sizeof(ad_value));
-// 	offset+=sd->wpe->size;
-// 	memcpy(p->param_list + offset, sd->lm_head->data, sd->lm_head->size * sizeof(ad_value));
-// 	offset+=sd->lm_head->size;
-// 	for(size_t i = 0; i < sd->num_layers; i++){
-// 		memcpy(p->param_list + offset, sd->attn_wq[i]->data, sd->attn_wq[i]->size * sizeof(ad_value));
-// 		offset += sd->attn_wq[i]->size; 
-// 		memcpy(p->param_list + offset, sd->attn_wk[i]->data, sd->attn_wk[i]->size * sizeof(ad_value));
-// 		offset += sd->attn_wk[i]->size; 
-// 		memcpy(p->param_list + offset, sd->attn_wv[i]->data, sd->attn_wv[i]->size * sizeof(ad_value));
-// 		offset += sd->attn_wv[i]->size; 
-// 		memcpy(p->param_list + offset, sd->attn_wo[i]->data, sd->attn_wo[i]->size * sizeof(ad_value));
-// 		offset += sd->attn_wo[i]->size; 
-// 		memcpy(p->param_list + offset, sd->mlp_fc1[i]->data, sd->mlp_fc1[i]->size * sizeof(ad_value));
-// 		offset += sd->mlp_fc1[i]->size; 
-// 		memcpy(p->param_list + offset, sd->mlp_fc2[i]->data, sd->mlp_fc2[i]->size * sizeof(ad_value));
-// 		offset += sd->mlp_fc2[i]->size; 
+// 	p->param_list = (ad_matrix**)malloc(num_params * sizeof(ad_matrix*));
+// 	if(!p->param_list){
+// 		free(p);
+// 		return NULL;
 // 	}
+// 	int offset = 0;
+// 	memcpy(p->param_list, sd->wte, sizeof(ad_matrix*));
+// 	offset+=sizeof(ad_matrix*);
+	// memcpy(p->param_list + offset, sd->wpe, sizeof(ad_matrix*));
+	// offset+=sizeof(ad_matrix*);
+	// memcpy(p->param_list + offset, sd->lm_head, sizeof(ad_matrix*));
+	// offset+=sd->lm_head->size;
+
+
+	// for(size_t i = 0; i < sd->num_layers; i++){
+	// 	memcpy(p->param_list + offset, sd->attn_wq[i]->data, sd->attn_wq[i]->size * sizeof(ad_matrix));
+	// 	offset += sd->attn_wq[i]->size; 
+	// 	memcpy(p->param_list + offset, sd->attn_wk[i]->data, sd->attn_wk[i]->size * sizeof(ad_matrix));
+	// 	offset += sd->attn_wk[i]->size; 
+	// 	memcpy(p->param_list + offset, sd->attn_wv[i]->data, sd->attn_wv[i]->size * sizeof(ad_matrix));
+	// 	offset += sd->attn_wv[i]->size; 
+	// 	memcpy(p->param_list + offset, sd->attn_wo[i]->data, sd->attn_wo[i]->size * sizeof(ad_matrix));
+	// 	offset += sd->attn_wo[i]->size; 
+	// 	memcpy(p->param_list + offset, sd->mlp_fc1[i]->data, sd->mlp_fc1[i]->size * sizeof(ad_matrix));
+	// 	offset += sd->mlp_fc1[i]->size; 
+	// 	memcpy(p->param_list + offset, sd->mlp_fc2[i]->data, sd->mlp_fc2[i]->size * sizeof(ad_matrix));
+	// 	offset += sd->mlp_fc2[i]->size; 
+	// }
 // 	return p;
-// }
+// } 
 //
 // void params_free(params* p){
 // 	assert(p != NULL);
@@ -247,20 +260,3 @@ void state_dict_free(state_dict* sd){
 
 
 
-matrix* gpt(state_dict* sd, int token_id, int pos_id, matrix* keys, matrix* values){
-	matrix* tok_emb = matrix_get_row(sd->wte, token_id);//	token embeddings 
-	matrix* pos_emb = matrix_get_row(sd->wte, pos_id);  //	position embeddings
-	matrix* x = matrix_add(tok_emb, pos_emb);			  //	joint embeddings
-
-
-
-
-
-
-	matrix* x_rms = matrix_rmsnorm(x);
-	matrix_free(tok_emb);
-	matrix_free(pos_emb);
-	matrix_free(x_rms);
-	matrix_free(x);
-	return tok_emb;
-}
