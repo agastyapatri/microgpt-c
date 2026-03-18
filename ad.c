@@ -449,87 +449,40 @@ ad_matrix* ad_matrix_softmax(ad_matrix* x){
 
 
 
-// ad_matrix* ad_matrix_rmsnorm(ad_matrix* x){
-// 	assert(x != NULL);
-// 	ad_matrix* out = ad_matrix_alloc(x->rows, x->cols);
-// 	ad_value* rms = ad_value_alloc(0);
-// 	ad_value* constant = ad_value_alloc(2);
-// 	for(uint i = 0; i < x->rows; i++){
-// 		for(uint j = 0; j < x->cols; j++){
-// 			ad_value* exponent = ad_value_pow(x->data[offset(x, i, j)], constant);
-// 			ad_value* new_sum = ad_value_add(rms, exponent);
-// 			ad_value_free(rms);
-// 			ad_value_free(exponent);
-// 			rms = new_sum;
-// 		}
-// 	}
-// 	ad_value_free(constant);
-// 	ad_value* scale = ad_value_alloc(1.0/x->size);
-// 	ad_value* scaled = ad_value_mul(rms, scale);
-// 	constant = ad_value_alloc(0.5);
-// 	ad_value* rms_final = ad_value_pow(scaled, constant);
-// 	ad_value_free(constant);
-// 	ad_value_free(scale);
-// 	ad_value_free(scaled);
-// 	ad_value_free(rms);
-//
-// 	for(uint i = 0; i < x->size; i++){
-// 		ad_value_free(out->data[i]);
-// 		out->data[i] = ad_value_div(x->data[i], rms_final);
-// 	}
-// 	ad_value_free(rms_final);
-// 	return out;
-// }
 
 
 ad_matrix* ad_matrix_rmsnorm(ad_matrix* x){
 	assert(x != NULL);
-	ad_value* ms = ad_value_alloc(0.0);
+	ad_value* rms = ad_value_alloc(0.0);
 	for(uint i = 0; i < x->size; i++){
-		ad_value* sq = ad_value_mul(x->data[i], x->data[i]);
-		ms = ad_value_add(ms, sq);
+		rms = ad_value_add(rms, ad_value_mul(x->data[i], x->data[i]));
 	}
-	ad_value* constant = ad_value_alloc(1.0/ x->size);
-	ms = ad_value_mul(ms, constant);
-	constant = ad_value_alloc(1e-5);
-	ms = ad_value_add(ms, constant);
-	constant = ad_value_alloc(-0.5);
-	ad_value* scale = ad_value_pow(ms, constant);
-
-
-
+	rms = ad_value_mul(rms, ad_value_alloc(1.0 / x->size));
+	rms = ad_value_add(rms, ad_value_alloc(1e-6));
+	rms = ad_value_pow(rms, ad_value_alloc(-0.5));
 	ad_matrix* out = ad_matrix_alloc(x->rows, x->cols);
-	for(uint i = 0 ; i < out->size; i++){
+	for(uint i = 0; i < x->size; i++){
 		ad_value_free(out->data[i]);
-		out->data[i] = ad_value_mul(x->data[i], scale);
+		out->data[i] = ad_value_mul(x->data[i], rms);
 	}
-
-
 	return out;
 }
 
-
-
-
-// ad_matrix* ad_matrix_matmul(ad_matrix* x, ad_matrix* y){
-// 	assert(x!=NULL);
-// 	assert(y!=NULL);
-// 	assert(x->cols == y->rows);
-// 	ad_matrix* out = ad_matrix_alloc(x->rows, y->cols);
-// 	for(uint i = 0; i < x->rows; i++){
-// 		for(uint k = 0; k < x->cols; k++){
-// 			ad_value* x_ik = x->data[offset(x, i, k)];
-// 			for(uint j = 0; j < y->cols; j++){
-// 				// out->data[offset(out, i, j)]->data += x_ik * y->data[offset(y, k, j)]->data;
-// 				ad_value* temp = ad_value_mul(x_ik, y->data[offset(y, k, j)]);
-// 				ad_value* temp2 = ad_value_add(out->data[offset(out, i ,j)], temp);
-// 			}
-// 		}
-// 	}
-// 	return out;
-// }
-
-
+ad_matrix* ad_matrix_matmul(ad_matrix* x, ad_matrix* y){
+	assert(x != NULL);
+	assert(y != NULL);
+	assert(x->cols == y->rows);
+	ad_matrix* out = ad_matrix_alloc(x->rows, y->cols);
+	for(uint i = 0; i < x->rows; i++){
+		for(uint k = 0; k < x->cols; k++){
+			ad_value* x_ik = x->data[offset(x, i, k)];
+			for(uint j = 0; j < y->cols; j++){
+				out->data[offset(out, i, j)] = ad_value_add(out->data[offset(out, i, j)], ad_value_mul(x_ik, y->data[offset(y, k, j)]));
+			}
+		}
+	}
+	return out;
+}
 
 ad_matrix* ad_matrix_get_row(ad_matrix* m, int row_idx){
 	assert(m!=NULL);

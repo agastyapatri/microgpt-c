@@ -24,25 +24,17 @@ int main(void){
 	tokenizer t = {.BOS = 0, .vocab_size = 0};
 	tokenizer_init(&t, name_list);
 	
-	ad_matrix* x = ad_matrix_alloc(1, 4);
-	x->data[0]->data = 1;
-	x->data[1]->data = 2;
-	x->data[2]->data = 3;
-	x->data[3]->data = 4;
-	ad_matrix* out = ad_matrix_softmax(x);
-	int target = 3;
-	ad_value* loss = ad_value_neg(ad_value_log(out->data[target]));
-	ad_value_backward(loss);
-	ad_value_print(loss);
-	printf("\n\n");
+	// ad_matrix* x = ad_matrix_alloc(1, 5);
+	// for(uint i = 0; i < x->size; i++)
+	// 	x->data[i]->data = i+1;
+	// ad_matrix* y = ad_matrix_rmsnorm(x);
+	// for(uint i = 0; i < x->size; i++)
+	// 	printf("%lf ", x->data[i]->grad);
 
-	for(uint i = 0; i < x->size; i++){
-		ad_value_print(x->data[i]);
-		printf("\n");
-	}
-
-
-
+	// x = [1.0, 2.0, 3.0, 4.0]
+	// ms = (1 + 4 + 9 + 16) / 4 = 7.5
+	// scale = 1 / sqrt(7.5 + 1e-5) = 0.3651
+	// expected output = [0.3651, 0.7303, 1.0954, 1.4606]
 	
 
 	
@@ -51,28 +43,3 @@ int main(void){
 
 }
 
-	// printf("Autograd Gradients: \n");
-	// for(uint i = 0 ;i < out->size; i++)
-	// 	printf("%lf ", x->data[i]->grad);
-	// printf("\n");
-	//
-	// printf("Numerical Gradients: \n");
-	//
-	// double h = (double)1e-5;
-	// for(uint i = 0 ;i < out->size; i++){
-	// 	x->data[i]->data += h;
-	// 	double sum = 0.0;
-	// 	ad_matrix* out2 = ad_matrix_rmsnorm(x);
-	// 	for(uint j = 0; j < out2->size; j++){
-	// 		sum += out2->data[i]->data;
-	// 	}
-	//
-	// 	x->data[i]->data -= 2*h;
-	// 	double sum2 = 0.0;
-	// 	ad_matrix* out3 = ad_matrix_rmsnorm(x);
-	// 	for(uint j = 0; j < out2->size; j++){
-	// 		sum2 += out3->data[i]->data;
-	// 	}
-	// 	x->data[i]->data += h;
-	// 	printf("%lf ", (sum - sum2) / h);
-	// }
