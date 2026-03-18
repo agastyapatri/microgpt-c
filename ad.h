@@ -103,6 +103,7 @@ ad_matrix* ad_matrix_sub(ad_matrix* m, ad_matrix* n);
 ad_matrix* ad_matrix_random_normal(int nrows, int ncols, double mu, double sigma);
 ad_matrix* ad_matrix_softmax(ad_matrix* n);
 ad_matrix* ad_matrix_rmsnorm(ad_matrix* x);
+ad_matrix* ad_matrix_relu(ad_matrix* x);
 ad_matrix* ad_matrix_matmul	(ad_matrix* x, ad_matrix* y);
 ad_matrix* ad_matrix_dot	(ad_matrix* x, ad_matrix* y);
 ad_matrix* ad_matrix_get_row(ad_matrix* m, int row_idx);

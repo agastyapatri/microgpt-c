@@ -445,10 +445,15 @@ ad_matrix* ad_matrix_softmax(ad_matrix* x){
 }
 
 
-
-
-
-
+ad_matrix* ad_matrix_relu(ad_matrix* x){
+	assert(x != NULL);
+	ad_matrix* out = ad_matrix_alloc(x->rows, x->cols);
+	for(uint i = 0; i < x->size; i++){
+		ad_value_free(out->data[i]);
+		out->data[i] = ad_value_relu(x->data[i]);
+	}
+	return out;
+}
 
 
 ad_matrix* ad_matrix_rmsnorm(ad_matrix* x){
@@ -492,7 +497,6 @@ ad_matrix* ad_matrix_get_row(ad_matrix* m, int row_idx){
 		row->data[j] = m->data[offset(m, row_idx, j)];
 		row->data[j]->ref_count++;
 	}
-
 	return row;
 }
 
