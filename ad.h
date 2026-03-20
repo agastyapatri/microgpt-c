@@ -69,6 +69,7 @@ typedef struct ad_matrix{
 	uint rows; 			// rows  
 	uint cols;  		// cols 
 	uint size;			// rows*cols
+	uint nbytes;
 	ad_value** data;    // flat representation
 } ad_matrix;
 #define offset(m, i, j) (i*m->cols + j)

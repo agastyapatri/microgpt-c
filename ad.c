@@ -326,6 +326,7 @@ ad_matrix* ad_matrix_alloc(uint nrows, uint ncols){
 		return NULL;
 	}
 	AD_MATRIX_SHAPE_INIT(m, nrows, ncols);
+	m->nbytes =size * sizeof(ad_value*); 
 	m->data = (ad_value**)malloc(size * sizeof(ad_value*));
 	if(!m->data){
 		free(m);

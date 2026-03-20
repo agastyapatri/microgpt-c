@@ -72,6 +72,15 @@ char tokenizer_decode(tokenizer* t, int n){
 	return t->uchars[n];
 }
 
+void tokenizer_apply (tokenizer* t, char* doc, int* tokens){
+	assert(t      != NULL);
+	assert(doc    != NULL);
+	assert(tokens != NULL);
+	for(uint i = 0; i < strlen(doc); i++)
+		tokens[i+1] = tokenizer_encode(t, doc[i]);
+	tokens[0] = t->BOS; 
+	tokens[strlen(doc)+1] = t->BOS;
+}
 
 
 state_dict* state_dict_init(size_t embd_dim, size_t num_heads, size_t num_layers, size_t block_size, size_t vocab_size){
@@ -189,7 +198,6 @@ void state_dict_free(state_dict* sd){
 	free(sd);
 }
 
-
 ad_matrix* mlp_forward(ad_matrix* x, state_dict* sd, int li){
 	ad_matrix* x_residual = x;
 	x = ad_matrix_rmsnorm(x);
@@ -199,5 +207,58 @@ ad_matrix* mlp_forward(ad_matrix* x, state_dict* sd, int li){
 	x = ad_matrix_add(x, x_residual);
 	return x;
 }
+
+parameters* parameters_init(state_dict* sd){
+	assert(sd != NULL);
+	parameters* p = (parameters*)malloc(sizeof(parameters));
+	if(!p)	return NULL;
+	p->num_params = 0; 
+	p->num_params += sd->wte->size;
+	p->num_params += sd->wpe->size;
+	p->num_params += sd->lm_head->size; 
+	for(size_t i = 0; i < sd->num_layers; i++){
+		p->num_params += sd->attn_wq[i]->size;
+		p->num_params += sd->attn_wk[i]->size;
+		p->num_params += sd->attn_wv[i]->size;
+		p->num_params += sd->attn_wo[i]->size;
+		p->num_params += sd->mlp_fc1[i]->size;
+		p->num_params += sd->mlp_fc2[i]->size;
+	}
+	p->param_list = (ad_value**)malloc(p->num_params * sizeof(ad_value*));
+	if(!p->param_list){
+		free(p);
+		return NULL;
+	}
+	int offset = 0; 
+	memcpy(p->param_list + offset, sd->wte->data, sd->wte->nbytes);
+	offset += sd->wte->size;
+	memcpy(p->param_list + offset, sd->wpe->data, sd->wpe->nbytes);
+	offset += sd->wpe->size;
+	memcpy(p->param_list + offset, sd->lm_head->data, sd->lm_head->nbytes);
+	offset += sd->lm_head->size;
+	for(size_t i = 0; i < sd->num_layers; i++){
+		memcpy(p->param_list + offset, sd->attn_wq[i]->data, sd->attn_wq[i]->nbytes);
+		offset += sd->attn_wq[i]->size;
+		memcpy(p->param_list + offset, sd->attn_wk[i]->data, sd->attn_wk[i]->nbytes);
+		offset += sd->attn_wk[i]->size;
+		memcpy(p->param_list + offset, sd->attn_wv[i]->data, sd->attn_wv[i]->nbytes);
+		offset += sd->attn_wv[i]->size;
+		memcpy(p->param_list + offset, sd->attn_wo[i]->data, sd->attn_wo[i]->nbytes);
+		offset += sd->attn_wo[i]->size;
+		memcpy(p->param_list + offset, sd->mlp_fc1[i]->data, sd->mlp_fc1[i]->nbytes);
+		offset += sd->mlp_fc1[i]->size;
+		memcpy(p->param_list + offset, sd->mlp_fc2[i]->data, sd->mlp_fc2[i]->nbytes);
+		offset += sd->mlp_fc2[i]->size;
+	}
+	return p;
+}
+void params_free(parameters* p){
+	assert(p != NULL);
+	free(p->param_list);
+	free(p);
+}
+
+
+
 
 
