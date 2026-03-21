@@ -260,5 +260,9 @@ void params_free(parameters* p){
 
 
 
+ad_matrix* gpt(state_dict* sd, int token_id, int pos_id, ad_matrix* keys, ad_matrix* values){
+	ad_matrix* logits = ad_matrix_alloc(1, 27);
+	return logits;
+}
 
 

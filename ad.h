@@ -6,7 +6,7 @@
 #include <stdbool.h> 
 #define NUM_PREVS 2
 #define NEXT 2
-#define GRAPH_SIZE 256
+#define GRAPH_SIZE 8192
 #define PI 3.1415926545897932
 #define MU 0 
 #define SIGMA 0.08

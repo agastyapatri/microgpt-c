@@ -311,10 +311,6 @@ void ad_value_backward(ad_value* out){
 	out->grad = 1.0;
 	for(int i = sorted_size - 1; i >=0; i--){
 		grad(sorted[i]);
-		// if(sorted[i]->op == NONE){
-		// 	ad_value_print(sorted[i]);
-		// 	printf("\n");
-		// }
 	}
 
 }
