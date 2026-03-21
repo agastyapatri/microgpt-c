@@ -108,5 +108,6 @@ ad_matrix* ad_matrix_relu(ad_matrix* x);
 ad_matrix* ad_matrix_matmul	(ad_matrix* x, ad_matrix* y);
 ad_matrix* ad_matrix_dot	(ad_matrix* x, ad_matrix* y);
 ad_matrix* ad_matrix_get_row(ad_matrix* m, int row_idx);
+ad_matrix* ad_matrix_from_raw(double* data, uint nrows, uint ncols);
 
 #endif /* ifndef EGAD_H */

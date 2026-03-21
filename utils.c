@@ -261,8 +261,31 @@ void params_free(parameters* p){
 
 
 ad_matrix* gpt(state_dict* sd, int token_id, int pos_id, ad_matrix* keys, ad_matrix* values){
-	ad_matrix* logits = ad_matrix_alloc(1, 27);
-	return logits;
+	ad_matrix* x = ad_matrix_alloc(1, sd->wte->cols);
+	for(uint i = 0; i < sd->wte->cols; i++){
+		ad_value_free(x->data[offset(x, 0, i)]);
+		ad_value* tok_emb = sd->wte->data[offset(sd->wte, 0, i)]; 
+		ad_value* pos_emb = sd->wpe->data[offset(sd->wpe, 0, i)]; 
+		x->data[offset(x, 0, i)] = ad_value_add(tok_emb, pos_emb);
+	}
+	x = ad_matrix_rmsnorm(x);
+	ad_matrix* x_residual = x;
+	for(uint li = 0; li < sd->num_layers; li++){
+		x_residual = x; 
+		x = ad_matrix_rmsnorm(x);
+		ad_matrix* q = ad_matrix_matmul(x, sd->attn_wq[li]);
+		ad_matrix* k = ad_matrix_matmul(x, sd->attn_wk[li]);
+		ad_matrix* v = ad_matrix_matmul(x, sd->attn_wv[li]);
+		for(uint j = 0; j < k->cols; j++){
+			ad_value_free(keys->data[offset(keys, li, j)]);
+			ad_value_free(values->data[offset(values, li, j)]);
+			keys->data[offset(keys, li, j)] = k->data[offset(k, 0, j)];
+			values->data[offset(values, li, j)] = v->data[offset(v, 0, j)];
+		}
+
+	}
+
 }
+
 
 

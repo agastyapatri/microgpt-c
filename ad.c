@@ -509,3 +509,16 @@ ad_matrix* ad_matrix_add(ad_matrix* m, ad_matrix* n){
 	return out;
 }
 
+ad_matrix* ad_matrix_from_raw(double* data, uint nrows, uint ncols){
+	ad_matrix* m = ad_matrix_alloc(nrows, ncols);
+	for(uint i = 0; i < nrows; i++){
+		for(uint j = 0; j < ncols; j++){
+			set(m, i, j, data[i*ncols + j]);
+		} 
+	}
+	return m;
+}
+
+
+
+
