@@ -54,8 +54,8 @@ double rand_normal(double mu, double sigma){
 	double n2 = 0.0; 
 	double n2_cached = 0.0; 
 	if(!n2_cached){
-		double u1 = rand_double();
-		double u2 = rand_double();
+		double u1 = RAND_DOUBLE();
+		double u2 = RAND_DOUBLE();
 		double r = sqrt(-2.0 * log(u1));
 		double theta = 2 * PI * u2;
 		n2 = r * sin(theta);
@@ -341,7 +341,7 @@ void ad_matrix_print(ad_matrix* m){
 		if(i > 0)
 			printf("          [");
 		for(uint j = 0; j < m->cols; j++){
-			double data = m->data[offset(m, i, j)]->data;
+			double data = m->data[OFFSET(m, i, j)]->data;
 			if(data >= 0)
 				printf("%10.8f", data);
 			else
@@ -473,25 +473,50 @@ ad_matrix* ad_matrix_rmsnorm(ad_matrix* x){
 ad_matrix* ad_matrix_matmul(ad_matrix* x, ad_matrix* y){
 	assert(x != NULL);
 	assert(y != NULL);
-	assert(x->cols == y->rows);
-	ad_matrix* out = ad_matrix_alloc(x->rows, y->cols);
+	// TODO: changed
+	assert(x->cols == y->cols);
+	ad_matrix _y = {.cols = y->rows, .rows = y->cols,  .data = y->data};
+	ad_matrix* Y = &_y;
+	ad_matrix* out = ad_matrix_alloc(x->rows, Y->cols);
 	for(uint i = 0; i < x->rows; i++){
 		for(uint k = 0; k < x->cols; k++){
-			ad_value* x_ik = x->data[offset(x, i, k)];
-			for(uint j = 0; j < y->cols; j++){
-				out->data[offset(out, i, j)] = ad_value_add(out->data[offset(out, i, j)], ad_value_mul(x_ik, y->data[offset(y, k, j)]));
+			ad_value* x_ik = GET(x, i, k);
+			for(uint j = 0; j < Y->cols; j++){
+				GET(out, i, j) = ad_value_add(GET(out, i, j), ad_value_mul(x_ik, GET(Y, k, j)));
 			}
 		}
 	}
 	return out;
 }
 
+
+// ad_matrix* ad_matrix_matmul(ad_matrix* x, ad_matrix* y){
+// 	assert(x != NULL);
+// 	assert(y != NULL);
+//	TODO: changed
+// 	assert(x->cols == y->rows);
+// 	ad_matrix* out = ad_matrix_alloc(x->rows, y->cols);
+// 	for(uint i = 0; i < x->rows; i++){
+// 		for(uint k = 0; k < x->cols; k++){
+// 			ad_value* x_ik = x->data[OFFSET(x, i, k)];
+// 			for(uint j = 0; j < y->cols; j++){
+// 				out->data[OFFSET(out, i, j)] = ad_value_add(out->data[OFFSET(out, i, j)], ad_value_mul(x_ik, y->data[OFFSET(y, k, j)]));
+// 			}
+// 		}
+// 	}
+// 	return out;
+// }
+
+
+
+
+
 ad_matrix* ad_matrix_get_row(ad_matrix* m, int row_idx){
 	assert(m!=NULL);
 	ad_matrix* row = ad_matrix_alloc(1, m->cols);
 	for(uint j = 0; j < m->cols; j++){
 		ad_value_free(row->data[j]);
-		row->data[j] = m->data[offset(m, row_idx, j)];
+		row->data[j] = m->data[OFFSET(m, row_idx, j)];
 		row->data[j]->ref_count++;
 	}
 	return row;
@@ -513,7 +538,7 @@ ad_matrix* ad_matrix_from_raw(double* data, uint nrows, uint ncols){
 	ad_matrix* m = ad_matrix_alloc(nrows, ncols);
 	for(uint i = 0; i < nrows; i++){
 		for(uint j = 0; j < ncols; j++){
-			set(m, i, j, data[i*ncols + j]);
+			SET(m, i, j, data[i*ncols + j]);
 		} 
 	}
 	return m;

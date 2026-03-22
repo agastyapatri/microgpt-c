@@ -1,10 +1,12 @@
 #include "utils.h"
+#include "ad.h"
 // #include "ad.h"
 #include <assert.h>
 #include <stdbool.h>
 #include <stdio.h> 
 #include <string.h> 
 #include <time.h>
+#include <math.h>
 
 int char_cmp(const void* a, const void* b){
 	return (*(unsigned char *)a - *(unsigned char* )b);
@@ -198,16 +200,6 @@ void state_dict_free(state_dict* sd){
 	free(sd);
 }
 
-ad_matrix* mlp_forward(ad_matrix* x, state_dict* sd, int li){
-	ad_matrix* x_residual = x;
-	x = ad_matrix_rmsnorm(x);
-	x = ad_matrix_matmul(x, sd->mlp_fc1[li]);
-	x = ad_matrix_relu(x);
-	x = ad_matrix_matmul(x, sd->mlp_fc2[li]);
-	x = ad_matrix_add(x, x_residual);
-	return x;
-}
-
 parameters* parameters_init(state_dict* sd){
 	assert(sd != NULL);
 	parameters* p = (parameters*)malloc(sizeof(parameters));
@@ -229,26 +221,26 @@ parameters* parameters_init(state_dict* sd){
 		free(p);
 		return NULL;
 	}
-	int offset = 0; 
-	memcpy(p->param_list + offset, sd->wte->data, sd->wte->nbytes);
-	offset += sd->wte->size;
-	memcpy(p->param_list + offset, sd->wpe->data, sd->wpe->nbytes);
-	offset += sd->wpe->size;
-	memcpy(p->param_list + offset, sd->lm_head->data, sd->lm_head->nbytes);
-	offset += sd->lm_head->size;
+	int OFFSET = 0; 
+	memcpy(p->param_list + OFFSET, sd->wte->data, sd->wte->nbytes);
+	OFFSET += sd->wte->size;
+	memcpy(p->param_list + OFFSET, sd->wpe->data, sd->wpe->nbytes);
+	OFFSET += sd->wpe->size;
+	memcpy(p->param_list + OFFSET, sd->lm_head->data, sd->lm_head->nbytes);
+	OFFSET += sd->lm_head->size;
 	for(size_t i = 0; i < sd->num_layers; i++){
-		memcpy(p->param_list + offset, sd->attn_wq[i]->data, sd->attn_wq[i]->nbytes);
-		offset += sd->attn_wq[i]->size;
-		memcpy(p->param_list + offset, sd->attn_wk[i]->data, sd->attn_wk[i]->nbytes);
-		offset += sd->attn_wk[i]->size;
-		memcpy(p->param_list + offset, sd->attn_wv[i]->data, sd->attn_wv[i]->nbytes);
-		offset += sd->attn_wv[i]->size;
-		memcpy(p->param_list + offset, sd->attn_wo[i]->data, sd->attn_wo[i]->nbytes);
-		offset += sd->attn_wo[i]->size;
-		memcpy(p->param_list + offset, sd->mlp_fc1[i]->data, sd->mlp_fc1[i]->nbytes);
-		offset += sd->mlp_fc1[i]->size;
-		memcpy(p->param_list + offset, sd->mlp_fc2[i]->data, sd->mlp_fc2[i]->nbytes);
-		offset += sd->mlp_fc2[i]->size;
+		memcpy(p->param_list + OFFSET, sd->attn_wq[i]->data, sd->attn_wq[i]->nbytes);
+		OFFSET += sd->attn_wq[i]->size;
+		memcpy(p->param_list + OFFSET, sd->attn_wk[i]->data, sd->attn_wk[i]->nbytes);
+		OFFSET += sd->attn_wk[i]->size;
+		memcpy(p->param_list + OFFSET, sd->attn_wv[i]->data, sd->attn_wv[i]->nbytes);
+		OFFSET += sd->attn_wv[i]->size;
+		memcpy(p->param_list + OFFSET, sd->attn_wo[i]->data, sd->attn_wo[i]->nbytes);
+		OFFSET += sd->attn_wo[i]->size;
+		memcpy(p->param_list + OFFSET, sd->mlp_fc1[i]->data, sd->mlp_fc1[i]->nbytes);
+		OFFSET += sd->mlp_fc1[i]->size;
+		memcpy(p->param_list + OFFSET, sd->mlp_fc2[i]->data, sd->mlp_fc2[i]->nbytes);
+		OFFSET += sd->mlp_fc2[i]->size;
 	}
 	return p;
 }
@@ -263,10 +255,10 @@ void params_free(parameters* p){
 ad_matrix* gpt(state_dict* sd, int token_id, int pos_id, ad_matrix* keys, ad_matrix* values){
 	ad_matrix* x = ad_matrix_alloc(1, sd->wte->cols);
 	for(uint i = 0; i < sd->wte->cols; i++){
-		ad_value_free(x->data[offset(x, 0, i)]);
-		ad_value* tok_emb = sd->wte->data[offset(sd->wte, 0, i)]; 
-		ad_value* pos_emb = sd->wpe->data[offset(sd->wpe, 0, i)]; 
-		x->data[offset(x, 0, i)] = ad_value_add(tok_emb, pos_emb);
+		ad_value_free(GET(x, 0, i));
+		ad_value* tok_emb = GET(sd->wte, token_id, i);
+		ad_value* pos_emb = GET(sd->wpe, pos_id, i);
+		GET(x, 0, i) = ad_value_add(tok_emb, pos_emb);
 	}
 	x = ad_matrix_rmsnorm(x);
 	ad_matrix* x_residual = x;
@@ -276,16 +268,82 @@ ad_matrix* gpt(state_dict* sd, int token_id, int pos_id, ad_matrix* keys, ad_mat
 		ad_matrix* q = ad_matrix_matmul(x, sd->attn_wq[li]);
 		ad_matrix* k = ad_matrix_matmul(x, sd->attn_wk[li]);
 		ad_matrix* v = ad_matrix_matmul(x, sd->attn_wv[li]);
-		for(uint j = 0; j < k->cols; j++){
-			ad_value_free(keys->data[offset(keys, li, j)]);
-			ad_value_free(values->data[offset(values, li, j)]);
-			keys->data[offset(keys, li, j)] = k->data[offset(k, 0, j)];
-			values->data[offset(values, li, j)] = v->data[offset(v, 0, j)];
-		}
+		ad_matrix* x_attn = ad_matrix_alloc(1, sd->embd_dim);
+		int x_attn_counter = 0;
 
-	}
+		//	populating the keys and values
+		for(uint j = 0; j < k->cols; j++){
+			ad_value_free(keys->data[OFFSET(keys, li, j)]);
+			ad_value_free(values->data[OFFSET(values, li, j)]);
+			GET(keys, li, j)   = GET(k, 0, j);
+			GET(values, li, j) = GET(v, 0, j);
+		}
+		for(size_t h = 0; h < sd->num_heads; h++){
+			int hs = h * sd->head_dim;
+			ad_matrix* q_h = ad_matrix_alloc(1, sd->head_dim);
+			ad_matrix* k_h = ad_matrix_alloc(sd->num_layers, keys->cols);
+			ad_matrix* v_h = ad_matrix_alloc(sd->num_layers, values->cols);
+			for(uint _j = 0; _j < sd->head_dim; _j++){
+				ad_value_free(q_h->data[OFFSET(q_h, 0, _j)]);
+				ad_value_free(k_h->data[OFFSET(k_h, li, _j)]);
+				ad_value_free(v_h->data[OFFSET(v_h, li, _j)]);
+				GET(q_h, 0, _j)  = GET(q, 0, hs+_j);
+				GET(k_h, li, _j) = GET(k, li, hs+_j);
+				GET(v_h, li, _j) = GET(v, li, hs+_j);
+
+			}
+			ad_matrix* attn_logits = ad_matrix_alloc(1, k_h->rows);
+			for(size_t t = 0; t < k_h->rows; t++){
+				ad_value* _sum = ad_value_alloc(0.0);
+				for(size_t j = 0; j < sd->head_dim; j++){
+					ad_value* mul = ad_value_mul(GET(q_h, 0, j), GET(k_h, t, j));
+					_sum = ad_value_add(_sum, mul);
+				}
+				_sum = ad_value_mul(_sum, ad_value_alloc(sqrt(sd->head_dim)));
+				attn_logits->data[OFFSET(attn_logits, t, 0)] = _sum;
+			}
+			ad_matrix* attn_weights = ad_matrix_softmax(attn_logits);
+			ad_matrix* head_out = ad_matrix_alloc(1, sd->head_dim);
+			for(size_t j = 0; j < sd->head_dim; j++){
+				ad_value* _sum = ad_value_alloc(0.0);
+				for(size_t t = 0; t < v_h->rows; t++){
+					ad_value* temp = ad_value_mul(GET(attn_weights, 0, t), GET(v_h, t, j));
+					_sum = ad_value_add(_sum, temp);
+				}
+				GET(head_out, 0, j) = _sum;
+			}
+			for(uint i = 0; i < head_out->size; i++){
+				ad_value_free(GET(x_attn, 0, i + x_attn_counter));
+				GET(x_attn, 0, i + x_attn_counter) = GET(head_out, 0, i);
+			}
+			x_attn_counter+=head_out->size;
+		}
+		x = ad_matrix_matmul(x_attn, sd->attn_wo[li]);
+		for(uint i = 0; i < x->cols; i++){
+			GET(x, 0, i) = ad_value_add(GET(x, 0, i), GET(x_residual, 0, i));
+		}
+		x_residual = x;
+		x = ad_matrix_rmsnorm(x);
+		x = ad_matrix_matmul(x, sd->mlp_fc1[li]);
+		x = ad_matrix_relu(x);
+		x = ad_matrix_matmul(x, sd->mlp_fc2[li]);
+		for(uint i = 0; i < x->cols; i++){
+			GET(x, 0, i) = ad_value_add(GET(x, 0, i), GET(x_residual, 0, i));
+		}
+	} 
+	ad_matrix* logits = ad_matrix_matmul(x, sd->lm_head);
+	return logits;
 
 }
 
-
+		//
+		// //	MLP block
+		// for(uint i = 0; i < x->cols; i++){
+		// 	GET(x, 0, i) = ad_value_relu(GET(x, 0, i));
+		// }
+		// x = ad_matrix_matmul(x, sd->mlp_fc2[li]);
+		// for(uint i = 0; i < x->cols; i++){
+		// 	GET(x, 0, i) = ad_value_add(GET(x, 0, i), GET(x_residual, 0, i));
+		// }
+		//
 

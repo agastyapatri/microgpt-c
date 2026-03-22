@@ -27,27 +27,7 @@ int main(void){
 	tokenizer_init(&t, documents);
 	state_dict* sd = state_dict_init(N_EMBD, N_HEAD, N_LAYER, GPT_BLOCK_SIZE, t.vocab_size);
 	parameters*  p = parameters_init(sd);
-	// train_gpt(sd, p, &t, documents);
-	
-	char* doc = documents[0];
-	int	  tokens[NAMEBUF];
-	tokenizer_apply(&t, doc, tokens);		//	tokenizing the document
-	int n = (GPT_BLOCK_SIZE < strlen(doc)+1) ? GPT_BLOCK_SIZE : strlen(doc)+1;
-	int tok_len = strlen(doc) + 2;
-
-	ad_matrix* keys   = ad_matrix_alloc(sd->num_layers, sd->attn_wk[0]->cols);
-	ad_matrix* values = ad_matrix_alloc(sd->num_layers, sd->attn_wv[0]->cols);
-	ad_matrix* losses = ad_matrix_alloc(sd->num_layers, n);
-	for(int pos_id = 0; pos_id < n; pos_id++){
-		int token_id  = tokens[pos_id];
-		int target_id = tokens[pos_id+1];
-		ad_matrix* logits = gpt(sd, token_id, pos_id, keys, values); 
-		// ad_matrix* probs = ad_matrix_softmax(logits);
-		// ad_value* loss_t = ad_value_log(probs->data[target_id]);
-		// loss_t = ad_value_mul(loss_t, ad_value_alloc(-1));
-		// losses->data[pos_id] = loss_t;
-		break;
-	}
+	train_gpt(sd, p, &t, documents);
 
 
 }

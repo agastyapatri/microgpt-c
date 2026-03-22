@@ -55,7 +55,6 @@ void parameters_free(parameters* p);
 
 
 
-ad_matrix* mlp_forward(ad_matrix* x, state_dict* sd, int li);
 ad_matrix* gpt(state_dict* sd, int token_id, int pos_id, ad_matrix* keys, ad_matrix* values);
 void train_gpt(state_dict* sd, parameters* p, tokenizer* t, char docs[][NAMEBUF]);
 

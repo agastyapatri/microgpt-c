@@ -6,7 +6,7 @@
 #include <stdbool.h> 
 #define NUM_PREVS 2
 #define NEXT 2
-#define GRAPH_SIZE 8192
+#define GRAPH_SIZE 8192*16
 #define PI 3.1415926545897932
 #define MU 0 
 #define SIGMA 0.08
@@ -72,10 +72,10 @@ typedef struct ad_matrix{
 	uint nbytes;
 	ad_value** data;    // flat representation
 } ad_matrix;
-#define offset(m, i, j) (i*m->cols + j)
-#define get(m, i, j) (m->data[i*m->cols + j]->data)
-#define set(m, i, j, value) (m->data[i*m->cols + j]->data = value)
-#define rand_double() (rand()/(double)RAND_MAX);
+#define OFFSET(m, i, j) (i*m->cols + j)
+#define GET(m, i, j) (m->data[i*m->cols + j])
+#define SET(m, i, j, value) (m->data[i*m->cols + j]->data = value)
+#define RAND_DOUBLE() (rand()/(double)RAND_MAX);
 #define AD_MATRIX_RANDOM_INIT(matrix, size, mu, sigma)	for(uint j = 0; j < size; j++){						 \
 															matrix->data[j]->data = rand_normal(mu, sigma);  \
 															matrix->data[j]->grad = 0; 						 \
