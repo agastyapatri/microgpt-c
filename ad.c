@@ -42,6 +42,7 @@ ad_value* ad_value_alloc(float data){
 	ad_value* a = (ad_value*)malloc(sizeof(ad_value));
 	if(!a)	return NULL;
 	a->data = data; 
+	a->is_param = false;
 	a->grad = 0;
 	a->op = NONE;
 	a->previous[0] = NULL;
@@ -319,6 +320,11 @@ void ad_value_backward(ad_value* out){
 	out->grad = 1.0;
 	for(int i = sorted_size - 1; i >=0; i--){
 		grad(sorted[i]);
+	}
+	for(int i = 0; i < (int)sorted_size-1; i++){
+		if(!sorted[i]->is_param){
+			ad_value_free(sorted[i]);
+		}
 	}
 	free(sorted);
 	free(visited);

@@ -4,6 +4,7 @@
 #include <assert.h>
 #include <stdbool.h>
 #include <stdio.h> 
+#include <stdlib.h>
 #include <string.h> 
 #include <time.h>
 #include <math.h>
@@ -171,8 +172,19 @@ state_dict* state_dict_init(size_t embd_dim, size_t num_heads, size_t num_layers
 		sd->attn_wk[i] = ad_matrix_random_normal(embd_dim, embd_dim, mu, sigma);
 		sd->attn_wv[i] = ad_matrix_random_normal(embd_dim, embd_dim, mu, sigma);
 		sd->attn_wo[i] = ad_matrix_random_normal(embd_dim, embd_dim, mu, sigma);
+		for(uint j = 0; j < embd_dim*embd_dim; j++){
+			sd->attn_wq[i]->data[j]->is_param = true;
+			sd->attn_wk[i]->data[j]->is_param = true;
+			sd->attn_wv[i]->data[j]->is_param = true;
+			sd->attn_wo[i]->data[j]->is_param = true;
+		}
 		sd->mlp_fc1[i] = ad_matrix_random_normal(4*embd_dim, embd_dim, mu, sigma);
 		sd->mlp_fc2[i] = ad_matrix_random_normal(embd_dim, 4*embd_dim, mu, sigma);
+		for(uint j = 0; j < 4*embd_dim*embd_dim; j++){
+			sd->mlp_fc1[i]->data[j]->is_param = true;
+			sd->mlp_fc2[i]->data[j]->is_param = true;
+		}
+
 	}
 	return sd;
 } 
@@ -251,7 +263,6 @@ void params_free(parameters* p){
 }
 
 
-
 ad_matrix* gpt_forward(state_dict* sd, int token_id, int pos_id, ad_matrix* keys, ad_matrix* values){
 	ad_matrix* x = ad_matrix_alloc(1, sd->wte->cols);
 	for(uint i = 0; i < sd->wte->cols; i++){
@@ -318,10 +329,14 @@ ad_matrix* gpt_forward(state_dict* sd, int token_id, int pos_id, ad_matrix* keys
 			}
 			x_attn_counter+=head_out->size;
 		}
+
+		//	output projection + residual
 		x = ad_matrix_matmul(x_attn, sd->attn_wo[li]);
 		for(uint i = 0; i < x->cols; i++){
 			GET(x, 0, i) = ad_value_add(GET(x, 0, i), GET(x_residual, 0, i));
 		}
+
+		//	mlp block
 		x_residual = x;
 		x = ad_matrix_rmsnorm(x);
 		x = ad_matrix_matmul(x, sd->mlp_fc1[li]);
@@ -336,7 +351,8 @@ ad_matrix* gpt_forward(state_dict* sd, int token_id, int pos_id, ad_matrix* keys
 
 }
 
-void gpt_train(state_dict* sd, parameters* p, tokenizer* t, char docs[][NAMEBUF], int num_steps, int learning_rate, int block_size, float beta1, float beta2, float eps_adam){
+
+void gpt_train(state_dict* sd, parameters* p, tokenizer* t, char docs[][NAMEBUF], int num_steps, float learning_rate, int block_size, float beta1, float beta2, float eps_adam){
 	float* m = calloc(p->num_params, sizeof(float));
 	memset(m, 0, sizeof(float)*p->num_params);
 	float* v = calloc(p->num_params, sizeof(float));
@@ -380,6 +396,7 @@ void gpt_train(state_dict* sd, parameters* p, tokenizer* t, char docs[][NAMEBUF]
 			p->param_list[i]->grad = 0;
 		}
 		printf("step: %d / %d | loss = %lf\n", step+1, num_steps, loss->data);
+		ad_matrix_free(losses);
 	}
 	free(m);
 	free(v);
@@ -388,32 +405,40 @@ void gpt_train(state_dict* sd, parameters* p, tokenizer* t, char docs[][NAMEBUF]
 
 
 void gpt_inference(state_dict* sd, float temperature, tokenizer* t, int block_size){
-	printf("GPT-2 Inference; generating new names\n");
+	printf("\n\nGPT-2 Inference; generating new names\n");
 	for(int sample_idx = 0; sample_idx < 20; sample_idx++){
-		ad_matrix* keys   = ad_matrix_alloc(sd->num_layers, sd->attn_wk[0]->cols);
-		ad_matrix* values = ad_matrix_alloc(sd->num_layers, sd->attn_wv[0]->cols);
 		char sample[NAMEBUF];
+		int sample_len = 0;
 		int token_id = t->BOS; 
+		ad_matrix* keys = ad_matrix_alloc(sd->num_layers, sd->attn_wk[0]->cols);
+		ad_matrix* values= ad_matrix_alloc(sd->num_layers, sd->attn_wv[0]->cols);
+
 		for(int pos_id = 0; pos_id < block_size; pos_id++){
 			ad_matrix* logits = gpt_forward(sd, token_id ,pos_id, keys, values);
+
 			for(uint i = 0; i < logits->size; i++)
 				GET(logits, 0, i)->data /= temperature;
 			// fix this to probability weighted random sampling
 			ad_matrix* probs = ad_matrix_softmax(logits);
-			float max_prob = ad_matrix_max(probs);
-			int token_id = 0;
+
+
+			float r = (float)rand() / (float)RAND_MAX;
+			float cumsum = 0.0;
+			token_id = t->BOS;
 			for(uint i = 0; i < probs->size; i++){
-				if(probs->data[i]->data == max_prob){
+				cumsum += probs->data[i]->data;
+				if(r < cumsum){
 					token_id = i;
+					break;
 				}
 			}
 			if(token_id == t->BOS){
 				break;
 			}
-			sample[pos_id] = tokenizer_decode(t, token_id);
-			sample[pos_id+1] = '\0';
+			sample[sample_len++] = tokenizer_decode(t, token_id);
 			ad_matrix_free(probs);
 		}
+		sample[sample_len] = '\0';
 		printf("sample %d; %s\n", sample_idx+1, sample);
 		ad_matrix_free(keys);
 		ad_matrix_free(values);

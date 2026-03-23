@@ -54,14 +54,8 @@ void parameters_free(parameters* p);
 
 
 
-typedef struct {
-	ad_matrix*** keys; 
-	ad_matrix*** values;
-} kv_cache;
-
-
 ad_matrix* gpt_forward(state_dict* sd, int token_id, int pos_id, ad_matrix* keys, ad_matrix* values);
-void 	   gpt_train(state_dict* sd, parameters* p, tokenizer* t, char docs[][NAMEBUF], int num_steps, int learning_rate, int block_size, float beta1, float beta2, float eps_adam);
+void 	   gpt_train(state_dict* sd, parameters* p, tokenizer* t, char docs[][NAMEBUF], int num_steps, float learning_rate, int block_size, float beta1, float beta2, float eps_adam);
 void 	   gpt_inference(state_dict* sd, float temperature, tokenizer* t, int block_size);
 
 

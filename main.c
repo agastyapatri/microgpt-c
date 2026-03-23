@@ -14,7 +14,7 @@
 #define LEARNING_RATE (float)1.5e-2
 #define BETA1 0.85 
 #define BETA2 0.99
-#define NUM_STEPS 10
+#define NUM_STEPS 500
 #define EPS_ADAM (float)1e-8
 #define TEMPERATURE 0.5
 

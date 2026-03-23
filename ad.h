@@ -6,7 +6,6 @@
 #include <stdbool.h> 
 #define NUM_PREVS 2
 #define NEXT 2
-// #define GRAPH_SIZE 8192*16
 #define GRAPH_SIZE 1024*2
 #define PI 3.1415926545897932
 #define MU 0 
@@ -37,6 +36,7 @@ typedef struct ad_value {
 	float grad;
 	int ref_count;
 	struct ad_value* previous[NUM_PREVS]; 
+	bool is_param;
 } ad_value;
 
 
