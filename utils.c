@@ -86,8 +86,8 @@ void tokenizer_apply (tokenizer* t, char* doc, int* tokens){
 
 
 state_dict* state_dict_init(size_t embd_dim, size_t num_heads, size_t num_layers, size_t block_size, size_t vocab_size){
-	double mu = 0; 
-	double sigma = 0.08; 
+	float mu = 0; 
+	float sigma = 0.08; 
 	int head_dim = (int)(embd_dim / num_heads);
 	state_dict* sd = (state_dict*)malloc(sizeof(state_dict));
 	if(!sd){
@@ -252,7 +252,7 @@ void params_free(parameters* p){
 
 
 
-ad_matrix* gpt(state_dict* sd, int token_id, int pos_id, ad_matrix* keys, ad_matrix* values){
+ad_matrix* gpt_forward(state_dict* sd, int token_id, int pos_id, ad_matrix* keys, ad_matrix* values){
 	ad_matrix* x = ad_matrix_alloc(1, sd->wte->cols);
 	for(uint i = 0; i < sd->wte->cols; i++){
 		ad_value_free(GET(x, 0, i));
@@ -299,7 +299,7 @@ ad_matrix* gpt(state_dict* sd, int token_id, int pos_id, ad_matrix* keys, ad_mat
 					ad_value* mul = ad_value_mul(GET(q_h, 0, j), GET(k_h, t, j));
 					_sum = ad_value_add(_sum, mul);
 				}
-				_sum = ad_value_mul(_sum, ad_value_alloc(sqrt(sd->head_dim)));
+				_sum = ad_value_mul(_sum, ad_value_alloc(1.0 / sqrt(sd->head_dim)));
 				attn_logits->data[OFFSET(attn_logits, t, 0)] = _sum;
 			}
 			ad_matrix* attn_weights = ad_matrix_softmax(attn_logits);
@@ -336,14 +336,89 @@ ad_matrix* gpt(state_dict* sd, int token_id, int pos_id, ad_matrix* keys, ad_mat
 
 }
 
-		//
-		// //	MLP block
-		// for(uint i = 0; i < x->cols; i++){
-		// 	GET(x, 0, i) = ad_value_relu(GET(x, 0, i));
-		// }
-		// x = ad_matrix_matmul(x, sd->mlp_fc2[li]);
-		// for(uint i = 0; i < x->cols; i++){
-		// 	GET(x, 0, i) = ad_value_add(GET(x, 0, i), GET(x_residual, 0, i));
-		// }
-		//
+void gpt_train(state_dict* sd, parameters* p, tokenizer* t, char docs[][NAMEBUF], int num_steps, int learning_rate, int block_size, float beta1, float beta2, float eps_adam){
+	float* m = calloc(p->num_params, sizeof(float));
+	memset(m, 0, sizeof(float)*p->num_params);
+	float* v = calloc(p->num_params, sizeof(float));
+	memset(v, 0, sizeof(float)*p->num_params);
+	for(int step = 0; step < num_steps; step++){
+		char* doc = docs[step % NUM_INPUTS];	//	obtaining a single document
+		int	  tokens[NAMEBUF];
+		tokenizer_apply(t, doc, tokens);		//	tokenizing the document
+		int n = (block_size < (int)strlen(doc)+1) ? block_size : strlen(doc)+1;
+		//	forwarding the token sequence through the model; building  up the computational graph.
+		ad_matrix* keys   = ad_matrix_alloc(sd->num_layers, sd->attn_wk[0]->cols);
+		ad_matrix* values = ad_matrix_alloc(sd->num_layers, sd->attn_wv[0]->cols);
+		ad_matrix* losses = ad_matrix_alloc(1, n);
+		for(int pos_id = 0; pos_id < n; pos_id++){
+			int token_id  = tokens[pos_id];
+			int target_id = tokens[pos_id+1];
+			ad_matrix* logits = gpt_forward(sd, token_id, pos_id, keys, values); 
+			ad_matrix* probs = ad_matrix_softmax(logits);
+			ad_value* loss_t = ad_value_log(probs->data[target_id]);
+			loss_t = ad_value_mul(loss_t, ad_value_alloc(-1));
+			ad_value_free(losses->data[pos_id]);
+			losses->data[pos_id] = loss_t;
+		}
+		ad_value* loss = ad_value_alloc(0.0);
+		for(uint i = 0; i < losses->size; i++){
+			loss = ad_value_add(loss, losses->data[i]);
+		}
+		loss = ad_value_mul(loss, ad_value_alloc(1.0 / n));
+		ad_value_backward(loss);
+
+		//	adam optimizer param update
+		float lr_t = learning_rate * (1 - (float)step / num_steps);
+		for(size_t i = 0; i < p->num_params; i++){
+			m[i] = beta1 * m[i] + (1 - beta1) * p->param_list[i]->grad;
+			v[i] = beta2 * v[i] + (1 - beta2) * (p->param_list[i]->grad * p->param_list[i]->grad);
+			float m_hat = m[i]  / (float)(1 - pow(beta1, step+1));
+			float v_hat = v[i]  / (float)(1 - pow(beta2, step+1));
+
+			//	param update + zero grad
+			p->param_list[i]->data -= lr_t * m_hat / (eps_adam + sqrt(v_hat));
+			p->param_list[i]->grad = 0;
+		}
+		printf("step: %d / %d | loss = %lf\n", step+1, num_steps, loss->data);
+	}
+	free(m);
+	free(v);
+}
+
+
+
+void gpt_inference(state_dict* sd, float temperature, tokenizer* t, int block_size){
+	printf("GPT-2 Inference; generating new names\n");
+	for(int sample_idx = 0; sample_idx < 20; sample_idx++){
+		ad_matrix* keys   = ad_matrix_alloc(sd->num_layers, sd->attn_wk[0]->cols);
+		ad_matrix* values = ad_matrix_alloc(sd->num_layers, sd->attn_wv[0]->cols);
+		char sample[NAMEBUF];
+		int token_id = t->BOS; 
+		for(int pos_id = 0; pos_id < block_size; pos_id++){
+			ad_matrix* logits = gpt_forward(sd, token_id ,pos_id, keys, values);
+			for(uint i = 0; i < logits->size; i++)
+				GET(logits, 0, i)->data /= temperature;
+			// fix this to probability weighted random sampling
+			ad_matrix* probs = ad_matrix_softmax(logits);
+			float max_prob = ad_matrix_max(probs);
+			int token_id = 0;
+			for(uint i = 0; i < probs->size; i++){
+				if(probs->data[i]->data == max_prob){
+					token_id = i;
+				}
+			}
+			if(token_id == t->BOS){
+				break;
+			}
+			sample[pos_id] = tokenizer_decode(t, token_id);
+			sample[pos_id+1] = '\0';
+			ad_matrix_free(probs);
+		}
+		printf("sample %d; %s\n", sample_idx+1, sample);
+		ad_matrix_free(keys);
+		ad_matrix_free(values);
+	}
+}
+
+
 

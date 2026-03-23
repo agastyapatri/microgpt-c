@@ -38,7 +38,7 @@ const char* get_optype_string(OPTYPE op){
 	return NULL;
 }
 
-ad_value* ad_value_alloc(double data){
+ad_value* ad_value_alloc(float data){
 	ad_value* a = (ad_value*)malloc(sizeof(ad_value));
 	if(!a)	return NULL;
 	a->data = data; 
@@ -50,14 +50,14 @@ ad_value* ad_value_alloc(double data){
 	return a;
 }
 
-double rand_normal(double mu, double sigma){
-	double n2 = 0.0; 
-	double n2_cached = 0.0; 
+float rand_normal(float mu, float sigma){
+	float n2 = 0.0; 
+	float n2_cached = 0.0; 
 	if(!n2_cached){
-		double u1 = RAND_DOUBLE();
-		double u2 = RAND_DOUBLE();
-		double r = sqrt(-2.0 * log(u1));
-		double theta = 2 * PI * u2;
+		float u1 = RAND_float();
+		float u2 = RAND_float();
+		float r = sqrt(-2.0 * log(u1));
+		float theta = 2 * PI * u2;
 		n2 = r * sin(theta);
 		n2_cached = 1;
 		return (r * cos(theta) * sigma + mu);
@@ -69,20 +69,20 @@ double rand_normal(double mu, double sigma){
 }
 
 
-ad_value* ad_value_rand_normal(double mu, double sigma){
+ad_value* ad_value_rand_normal(float mu, float sigma){
 	return ad_value_alloc(rand_normal(mu, sigma));
 }
 
-ad_value* ad_value_random_gauss(double mu, double sigma){
-	double n2 = 0.0; 
-	double n2_cached = 0.0; 
-	double data;
+ad_value* ad_value_random_gauss(float mu, float sigma){
+	float n2 = 0.0; 
+	float n2_cached = 0.0; 
+	float data;
 	if(!n2_cached){
-		// double u1 = rand_double();
-		double u1 = rand() / (double)RAND_MAX;
-		double u2 = rand() / (double)RAND_MAX;
-		double r = sqrt(-2.0 * log(u1));
-		double theta = 2 * PI * u2;
+		// float u1 = rand_float();
+		float u1 = rand() / (float)RAND_MAX;
+		float u2 = rand() / (float)RAND_MAX;
+		float r = sqrt(-2.0 * log(u1));
+		float theta = 2 * PI * u2;
 		n2 = r * sin(theta);
 		n2_cached = 1;
 		data = r * cos(theta) * sigma + mu;
@@ -283,35 +283,45 @@ void grad(ad_value* out){
 }
 
 
-void graph_sort(ad_value* out, ad_value** sorted, int* sorted_size, ad_value** visited, int* visited_size){
-	for(int i = 0; i < *visited_size; i++){
-		if(visited[i] == out)
+void graph_sort(ad_value* out, ad_value*** sorted, size_t* sorted_size, ad_value*** visited, size_t* visited_size, size_t* capacity){
+	for(size_t i = 0; i < *visited_size; i++){
+		if((*visited)[i] == out)
 			return;
 	}
-	visited[*visited_size] = out;
+	if(*visited_size >= *capacity){
+		*capacity *= 2; 
+		*visited = realloc(*visited, *capacity * sizeof(ad_value*));
+		*sorted = realloc(*sorted, *capacity * sizeof(ad_value*));
+		assert(*sorted != NULL);
+		assert(*visited != NULL);
+
+	}
+	(*visited)[*visited_size] = out;
 	(*visited_size)++;
 	for(int i = 0; i < NUM_PREVS; i++){
 		if(!out->previous[i])
 			break;
-		graph_sort(out->previous[i], sorted, sorted_size, visited, visited_size);
+		graph_sort(out->previous[i], sorted, sorted_size, visited, visited_size, capacity);
 	}
-	sorted[*sorted_size] = out;
+	(*sorted)[*sorted_size] = out;
 	(*sorted_size)++;
 }
 
 
 void ad_value_backward(ad_value* out){
 	size_t graph_size = GRAPH_SIZE;
-	ad_value* sorted[graph_size];
-	ad_value* visited[graph_size];
-	int sorted_size = 0;
-	int visited_size = 0;
-	graph_sort(out, sorted, &sorted_size, visited, &visited_size);
+	ad_value** sorted = (ad_value**)malloc(GRAPH_SIZE * sizeof(ad_value*));
+	ad_value** visited = (ad_value**)malloc(GRAPH_SIZE * sizeof(ad_value*));
+	size_t sorted_size = 0;
+	size_t visited_size = 0;
+	graph_sort(out, &sorted, &sorted_size, &visited, &visited_size, &graph_size);
 
 	out->grad = 1.0;
 	for(int i = sorted_size - 1; i >=0; i--){
 		grad(sorted[i]);
 	}
+	free(sorted);
+	free(visited);
 
 }
 
@@ -341,7 +351,7 @@ void ad_matrix_print(ad_matrix* m){
 		if(i > 0)
 			printf("          [");
 		for(uint j = 0; j < m->cols; j++){
-			double data = m->data[OFFSET(m, i, j)]->data;
+			float data = m->data[OFFSET(m, i, j)]->data;
 			if(data >= 0)
 				printf("%10.8f", data);
 			else
@@ -357,7 +367,7 @@ void ad_matrix_print(ad_matrix* m){
 }
 
 
-ad_matrix* ad_matrix_random_normal(int nrows, int ncols, double mu, double sigma){
+ad_matrix* ad_matrix_random_normal(int nrows, int ncols, float mu, float sigma){
 	ad_matrix* m = ad_matrix_alloc(nrows, ncols);
 	for(uint i = 0; i < m->size; i++)
 		m->data[i]->data = rand_normal(mu, sigma);
@@ -373,23 +383,23 @@ void ad_matrix_free(ad_matrix* m){
 	free(m);
 }
 
-double ad_matrix_sum(ad_matrix* m){
+float ad_matrix_sum(ad_matrix* m){
 	assert(m!=NULL);
-	double _sum = 0.0; 
+	float _sum = 0.0; 
 	for(uint i = 0; i < m->size; i++)
 		_sum += m->data[i]->data;
 	return _sum;
 }
 
-double ad_matrix_mean(ad_matrix* m){
+float ad_matrix_mean(ad_matrix* m){
 	assert(m!=NULL);
 	return ad_matrix_sum(m)/m->size;
 }
 
-double ad_matrix_std(ad_matrix* m){
+float ad_matrix_std(ad_matrix* m){
 	assert(m!=NULL);
-	double mu = ad_matrix_mean(m);
-	double sigma = 0.0;
+	float mu = ad_matrix_mean(m);
+	float sigma = 0.0;
 	for(uint i = 0; i < m->size; i++){
 		sigma += (m->data[i]->data - mu)*(m->data[i]->data - mu);
 	}
@@ -397,9 +407,9 @@ double ad_matrix_std(ad_matrix* m){
 	return sqrt(sigma);
 }
 
-double 	ad_matrix_max(ad_matrix* m){
+float 	ad_matrix_max(ad_matrix* m){
 	assert(m!=NULL);
-	double max = 0;
+	float max = 0;
 	for(uint i = 0; i < m->size; i++){
 		if(m->data[i]->data > max){
 			max = m->data[i]->data;
@@ -408,9 +418,9 @@ double 	ad_matrix_max(ad_matrix* m){
 	return max;
 }
 
-double 	ad_matrix_min(ad_matrix* m){
+float 	ad_matrix_min(ad_matrix* m){
 	assert(m!=NULL);
-	double max = (double)1e9;
+	float max = (float)1e9;
 	for(uint i = 0; i < m->size; i++){
 		if(m->data[i]->data < max){
 			max = m->data[i]->data;
@@ -534,7 +544,7 @@ ad_matrix* ad_matrix_add(ad_matrix* m, ad_matrix* n){
 	return out;
 }
 
-ad_matrix* ad_matrix_from_raw(double* data, uint nrows, uint ncols){
+ad_matrix* ad_matrix_from_raw(float* data, uint nrows, uint ncols){
 	ad_matrix* m = ad_matrix_alloc(nrows, ncols);
 	for(uint i = 0; i < nrows; i++){
 		for(uint j = 0; j < ncols; j++){

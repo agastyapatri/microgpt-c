@@ -6,11 +6,11 @@
 #include <stdbool.h> 
 #define NUM_PREVS 2
 #define NEXT 2
-#define GRAPH_SIZE 8192*16
+// #define GRAPH_SIZE 8192*16
+#define GRAPH_SIZE 1024*2
 #define PI 3.1415926545897932
 #define MU 0 
 #define SIGMA 0.08
-#define GRAPH_EQUALITY(inp1, inp2) (inp1->tape == inp2->tape) 
 
 typedef unsigned int uint;
 
@@ -33,17 +33,17 @@ typedef enum {
 
 typedef struct ad_value {
 	OPTYPE op;
-	double data;
-	double grad;
+	float data;
+	float grad;
 	int ref_count;
 	struct ad_value* previous[NUM_PREVS]; 
 } ad_value;
 
 
 const char* get_optype_string(OPTYPE op);
-ad_value* ad_value_random_gauss(double mu, double sigma);
-ad_value* ad_value_alloc	(double data);
-ad_value* ad_value_rand_normal(double mu, double sigma);
+ad_value* ad_value_random_gauss(float mu, float sigma);
+ad_value* ad_value_alloc	(float data);
+ad_value* ad_value_rand_normal(float mu, float sigma);
 void ad_value_print		(ad_value* val);
 void ad_value_free		(ad_value* val);
 
@@ -62,7 +62,7 @@ ad_value* ad_value_cos	(ad_value* inp1);
 ad_value* ad_value_relu	(ad_value* inp1);
 bool ad_value_equality 	(ad_value* inp1, ad_value* inp2);
 void ad_value_backward 	(ad_value* out);
-double rand_normal(double mu, double sigma);
+float rand_normal(float mu, float sigma);
 
 
 typedef struct ad_matrix{
@@ -75,7 +75,7 @@ typedef struct ad_matrix{
 #define OFFSET(m, i, j) (i*m->cols + j)
 #define GET(m, i, j) (m->data[i*m->cols + j])
 #define SET(m, i, j, value) (m->data[i*m->cols + j]->data = value)
-#define RAND_DOUBLE() (rand()/(double)RAND_MAX);
+#define RAND_float() (rand()/(float)RAND_MAX);
 #define AD_MATRIX_RANDOM_INIT(matrix, size, mu, sigma)	for(uint j = 0; j < size; j++){						 \
 															matrix->data[j]->data = rand_normal(mu, sigma);  \
 															matrix->data[j]->grad = 0; 						 \
@@ -92,22 +92,22 @@ typedef struct ad_matrix{
 ad_matrix* ad_matrix_alloc(uint nrows, uint ncols);
 void 	ad_matrix_free  (ad_matrix* m);
 void 	ad_matrix_print	(ad_matrix* m);
-double 	ad_matrix_mean	(ad_matrix* m);
-double 	ad_matrix_sum	(ad_matrix* m);
-double 	ad_matrix_std	(ad_matrix* m);
-double 	ad_matrix_max	(ad_matrix* m);
-double 	ad_matrix_min	(ad_matrix* m);
+float 	ad_matrix_mean	(ad_matrix* m);
+float 	ad_matrix_sum	(ad_matrix* m);
+float 	ad_matrix_std	(ad_matrix* m);
+float 	ad_matrix_max	(ad_matrix* m);
+float 	ad_matrix_min	(ad_matrix* m);
 ad_matrix* ad_matrix_add(ad_matrix* m, ad_matrix* n);
 ad_matrix* ad_matrix_sub(ad_matrix* m, ad_matrix* n);
 
 //	creates a matrix of ad_values initialized to a gaussian distribution
-ad_matrix* ad_matrix_random_normal(int nrows, int ncols, double mu, double sigma);
+ad_matrix* ad_matrix_random_normal(int nrows, int ncols, float mu, float sigma);
 ad_matrix* ad_matrix_softmax(ad_matrix* n);
 ad_matrix* ad_matrix_rmsnorm(ad_matrix* x);
 ad_matrix* ad_matrix_relu(ad_matrix* x);
 ad_matrix* ad_matrix_matmul	(ad_matrix* x, ad_matrix* y);
 ad_matrix* ad_matrix_dot	(ad_matrix* x, ad_matrix* y);
 ad_matrix* ad_matrix_get_row(ad_matrix* m, int row_idx);
-ad_matrix* ad_matrix_from_raw(double* data, uint nrows, uint ncols);
+ad_matrix* ad_matrix_from_raw(float* data, uint nrows, uint ncols);
 
 #endif /* ifndef EGAD_H */
