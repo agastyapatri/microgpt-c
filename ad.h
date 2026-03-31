@@ -6,7 +6,7 @@
 #include <stdbool.h> 
 #define NUM_PREVS 2
 #define NEXT 2
-#define GRAPH_SIZE 1024*2
+#define GRAPH_SIZE 4096*2
 #define PI 3.1415926545897932
 #define MU 0 
 #define SIGMA 0.08
@@ -19,8 +19,7 @@ typedef enum {
 	SUB,
 	MUL,
 	DIV,
-	POW,
-	SIGMOID,
+	POW, SIGMOID,
 	NEG, 
 	TANH,
 	RELU,
@@ -35,8 +34,9 @@ typedef struct ad_value {
 	float data;
 	float grad;
 	int ref_count;
-	struct ad_value* previous[NUM_PREVS]; 
 	bool is_param;
+	bool visited;
+	struct ad_value* previous[NUM_PREVS]; 
 } ad_value;
 
 

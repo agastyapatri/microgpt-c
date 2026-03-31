@@ -358,6 +358,7 @@ void gpt_train(state_dict* sd, parameters* p, tokenizer* t, char docs[][NAMEBUF]
 	float* v = calloc(p->num_params, sizeof(float));
 	memset(v, 0, sizeof(float)*p->num_params);
 	for(int step = 0; step < num_steps; step++){
+		clock_t start = clock();
 		char* doc = docs[step % NUM_INPUTS];	//	obtaining a single document
 		int	  tokens[NAMEBUF];
 		tokenizer_apply(t, doc, tokens);		//	tokenizing the document
@@ -395,7 +396,8 @@ void gpt_train(state_dict* sd, parameters* p, tokenizer* t, char docs[][NAMEBUF]
 			p->param_list[i]->data -= lr_t * m_hat / (eps_adam + sqrt(v_hat));
 			p->param_list[i]->grad = 0;
 		}
-		printf("step: %d / %d | loss = %lf\n", step+1, num_steps, loss->data);
+		clock_t end = clock();
+		printf("step: %d / %d | loss = %lf\ttime = %10.10f\n", step+1, num_steps, loss->data, (double)(end - start) / CLOCKS_PER_SEC);
 		ad_matrix_free(losses);
 	}
 	free(m);

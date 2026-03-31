@@ -48,6 +48,7 @@ ad_value* ad_value_alloc(float data){
 	a->previous[0] = NULL;
 	a->previous[1] = NULL;
 	a->ref_count = 1;
+	a->visited = false;
 	return a;
 }
 
@@ -285,17 +286,14 @@ void grad(ad_value* out){
 
 
 void graph_sort(ad_value* out, ad_value*** sorted, size_t* sorted_size, ad_value*** visited, size_t* visited_size, size_t* capacity){
-	for(size_t i = 0; i < *visited_size; i++){
-		if((*visited)[i] == out)
-			return;
-	}
+	if(out->visited) return;
+	out->visited = true; 
 	if(*visited_size >= *capacity){
 		*capacity *= 2; 
 		*visited = realloc(*visited, *capacity * sizeof(ad_value*));
 		*sorted = realloc(*sorted, *capacity * sizeof(ad_value*));
 		assert(*sorted != NULL);
 		assert(*visited != NULL);
-
 	}
 	(*visited)[*visited_size] = out;
 	(*visited_size)++;
@@ -322,10 +320,12 @@ void ad_value_backward(ad_value* out){
 		grad(sorted[i]);
 	}
 	for(int i = 0; i < (int)sorted_size-1; i++){
+		sorted[i]->visited = false;
 		if(!sorted[i]->is_param){
 			ad_value_free(sorted[i]);
 		}
 	}
+	sorted[sorted_size - 1] = false;
 	free(sorted);
 	free(visited);
 
@@ -504,26 +504,6 @@ ad_matrix* ad_matrix_matmul(ad_matrix* x, ad_matrix* y){
 	}
 	return out;
 }
-
-
-// ad_matrix* ad_matrix_matmul(ad_matrix* x, ad_matrix* y){
-// 	assert(x != NULL);
-// 	assert(y != NULL);
-//	TODO: changed
-// 	assert(x->cols == y->rows);
-// 	ad_matrix* out = ad_matrix_alloc(x->rows, y->cols);
-// 	for(uint i = 0; i < x->rows; i++){
-// 		for(uint k = 0; k < x->cols; k++){
-// 			ad_value* x_ik = x->data[OFFSET(x, i, k)];
-// 			for(uint j = 0; j < y->cols; j++){
-// 				out->data[OFFSET(out, i, j)] = ad_value_add(out->data[OFFSET(out, i, j)], ad_value_mul(x_ik, y->data[OFFSET(y, k, j)]));
-// 			}
-// 		}
-// 	}
-// 	return out;
-// }
-
-
 
 
 

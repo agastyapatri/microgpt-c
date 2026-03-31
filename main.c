@@ -11,7 +11,7 @@
 #define N_LAYER 1							//	number of layers 
 #define GPT_BLOCK_SIZE 16					//	maximum sequence length
 #define HEAD_DIM (int)(N_EMBD / N_HEAD) 	// dimensionality of each head
-#define LEARNING_RATE (float)1.5e-2
+#define LEARNING_RATE (float)1.0e-2
 #define BETA1 0.85 
 #define BETA2 0.99
 #define NUM_STEPS 500
@@ -30,8 +30,6 @@ int main(void){
 	parameters*  p = parameters_init(sd);
 	gpt_train(sd, p, &t, documents, NUM_STEPS, LEARNING_RATE, GPT_BLOCK_SIZE, BETA1, BETA2, EPS_ADAM);
 	gpt_inference(sd, TEMPERATURE, &t, GPT_BLOCK_SIZE);
-
-
 }
 
 
