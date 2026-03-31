@@ -1,21 +1,7 @@
 #   MicroGPT-C
 A C port of Andrej Karpathy's [MicroGPT](https://gist.github.com/karpathy/8627fe009c40f57531cb18360106ce95), written without any dependencies beyond the standard library. 
 
-Compared to the original: 
--   ~35x speedup on average time-per-epoch over 1000 epochs
--   Add the memory footprints of both 
--   Add the tokens per second of both
-
-
-
-
-
-
-
-
-
-
-
+Compared to the original, the current microgpt-c has a ~32x speedup on average time-per-epoch over 1000 epochs
 
 
 ```

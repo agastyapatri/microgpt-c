@@ -1,8 +1,14 @@
 CC = clang 
-# CFLAGS = -std=c17 -Wall -Wextra  -g -O0 -march=native 
-CFLAGS = -std=c17 -Wall -Wextra -O3 -ffast-math -DNDEBUG -march=native 
+CFLAGSRELEASE = -std=c17 -Wall -Wextra -O3 -ffast-math -DNDEBUG -march=native 
+CFLAGSDEBUG = -std=c17 -Wall -Wextra -O0  -DDEBUG -march=native 
+
 SRCS = ad.c utils.c main.c 
 all: main 
 
 main: $(SRCS)
-	$(CC) $(CFLAGS)  $^ -o $@ -lm 
+	$(CC) $(CFLAGSRELEASE)  $^ -o $@ -lm 
+
+debug: $(SRCS)
+	$(CC) $(CFLAGSDEBUG)  $^ -o $@ -lm 
+
+
