@@ -4,8 +4,8 @@
 #include <assert.h>
 #include <stdbool.h>
 #include <stdio.h> 
-#include <stdlib.h>
-#include <string.h> 
+#include <stdlib.h> 
+#include <string.h>
 #include <time.h>
 #include <math.h>
 
@@ -356,9 +356,10 @@ void gpt_train(state_dict* sd, parameters* p, tokenizer* t, char docs[][NAMEBUF]
 	float* m = calloc(p->num_params, sizeof(float));
 	memset(m, 0, sizeof(float)*p->num_params);
 	float* v = calloc(p->num_params, sizeof(float));
+	double avg = 0;
 	memset(v, 0, sizeof(float)*p->num_params);
 	for(int step = 0; step < num_steps; step++){
-		clock_t start = clock();
+		clock_t start  = clock();
 		char* doc = docs[step % NUM_INPUTS];	//	obtaining a single document
 		int	  tokens[NAMEBUF];
 		tokenizer_apply(t, doc, tokens);		//	tokenizing the document
@@ -396,10 +397,13 @@ void gpt_train(state_dict* sd, parameters* p, tokenizer* t, char docs[][NAMEBUF]
 			p->param_list[i]->data -= lr_t * m_hat / (eps_adam + sqrt(v_hat));
 			p->param_list[i]->grad = 0;
 		}
-		clock_t end = clock();
-		printf("step: %d / %d | loss = %lf\ttime = %10.10f\n", step+1, num_steps, loss->data, (double)(end - start) / CLOCKS_PER_SEC);
+		clock_t end  = clock();
+		// printf("step: %d / %d | loss = %lf\n", step+1, num_steps, loss->data);
 		ad_matrix_free(losses);
+		avg += (end - start) / (double)CLOCKS_PER_SEC;
 	}
+	avg /= 1000;
+	printf("Average time per step: %10.10f\n", avg);
 	free(m);
 	free(v);
 }
@@ -446,6 +450,5 @@ void gpt_inference(state_dict* sd, float temperature, tokenizer* t, int block_si
 		ad_matrix_free(values);
 	}
 }
-
 
 

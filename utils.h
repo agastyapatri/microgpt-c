@@ -63,4 +63,21 @@ void 	   gpt_inference(state_dict* sd, float temperature, tokenizer* t, int bloc
 
 
 
+typedef struct {
+	int n_pos; 
+	int capacity;
+	int n_layers; 
+	ad_matrix*** keys; 
+	ad_matrix*** values; 
+} kv_cache;
+
+kv_cache* kv_cache_init(int n_layers, int init_capacity);
+void kv_cache_append(kv_cache* kv, int layer, ad_matrix* k, ad_matrix* v);
+void kv_cache_free(kv_cache* kv);
+ad_matrix* gpt_forward_alt(state_dict* sd, int token_id, int pos_id, kv_cache* kv);
+void 	   gpt_train_alt(state_dict* sd, parameters* p, tokenizer* t, char docs[][NAMEBUF], int num_steps, float learning_rate, int block_size, float beta1, float beta2, float eps_adam);
+
+
+
+
 #endif
